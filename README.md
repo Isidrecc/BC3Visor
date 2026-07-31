@@ -27,15 +27,20 @@ hay).
 
 ## Y además lo recalcula, para delatar descuadres
 
-Al lado de **Precio archivo** hay una columna **Precio calculado**, en verde si
-cuadra con lo que declara el archivo y en rojo si no:
+Junto a **Precio archivo** —lo que pone el `~C`, sin tocar— hay dos columnas
+calculadas, y lo calculado sale en verde si cuadra con lo declarado y en rojo si
+no:
 
-- En una **partida**, el coste directo que sale de sumar su descomposición. En el
-  panel de detalle, la cadena completa como en el informe de Presto: suma la
-  partida, costes indirectos, redondeo y total de partida.
-- En un **capítulo**, la suma de los importes de sus partidas, contra el total que
-  el capítulo declara.
+- **Precio calculado**, solo en las partidas: el coste directo que sale de sumar
+  su descomposición, que es lo que el `~C` declara ahí. Un capítulo no tiene
+  precio unitario, así que la deja en blanco.
+- **Importe calculado (con CI)**: en una partida, precio con costes indirectos ×
+  medición; en un capítulo, la suma de los importes de sus partidas, contrastada
+  contra el total que el capítulo declara.
 - Arriba, el **PEM calculado** contra el declarado en la raíz.
+
+En el panel de detalle de cada partida, la cadena completa como en el informe de
+Presto: suma la partida, costes indirectos, redondeo y total de partida.
 
 El cálculo replica el de Presto con los decimales y coeficientes que declara el
 propio `~K` del archivo, redondeando en la misma cadena y el mismo orden — si no,
