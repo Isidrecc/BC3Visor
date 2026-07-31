@@ -62,6 +62,14 @@ Tres cosas que cuestan caro descubrir solas:
   `8,86`, y muestra `9,39` con el 6% de CI encima). Por eso «Precio calculado»
   enseña el CD en las partidas: es lo único comparable con lo que hay en el `~C`.
   El total con CI va en el desglose del panel de detalle.
+  Contrastado sobre las 681 partidas con descomposición de `EJEMPLOS/`: **ni una
+  sola trae el CI en el `~C`**. Lo mismo dice BC3manager, que compara el `~C`
+  contra el precio recalculado «con CI si es capítulo»
+  (`docs/auditoria/spec-script-comparacion.md`).
+- **El `~C` de un capítulo sí lleva el importe con CI** — es la suma de los
+  importes de sus partidas, no un coste directo. Por eso el capítulo se compara
+  contra esa suma y no contra `CD×(1+CI)` (`docs/auditoria/registro-bugs.md`, bug
+  2: comparar por `CD×(1+CI)` «solo cuadraba por tolerancia» y se eliminó).
 - **Redondeo mitad-arriba y exacto.** `Math.round()` sobre floats se equivoca
   justo donde importa (`0,015 × 27,49 = 0,41234999…` daría `0,4123` en vez de
   `0,4124`). Resuelto en `decFrom/decMul/decRound` con BigInt: un decimal es
