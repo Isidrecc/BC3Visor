@@ -35,42 +35,62 @@ delata.**
 
 ## El cálculo replica a Presto, vía `~K`
 
-Nada de constantes en el código: los decimales y los coeficientes salen del
-registro `~K` del propio archivo. Calcular "a lo bruto" con floats de JS daría
-descuadres de céntimos en casi todas las partidas, y entonces el aviso no vale
-nada.
+Implementado y verificado contra BC3manager: mismo PEM al céntimo en los cinco
+archivos de `EJEMPLOS/`. Nada de constantes en el código — los decimales y los
+coeficientes salen del `~K` del propio archivo. Si no hay `~K`, `K.activo` queda
+en `false` y se calcula a precisión alta sin redondear.
 
-- **Campo 2** del `~K`: coeficientes `CI \ GG \ BI \ BAJA \ IVA` en %. Al PEM solo
-  le afecta el CI, y se aplica por partida: `precio = redondear(CD × (1+CI), DUO)`.
-- **Campo 3**: los decimales de cada paso, en el orden
-  `DRC DC DFS DRS DUO DI DES DN DD DS DSP DEC` — **con dos huecos vacíos en el
-  patrón**. FIEBDC-2016 obliga a leer el campo 3 y caer al 1/2 solo si falta.
-  Hoy `regK()` solo lee el campo 2 y la moneda; habrá que ampliarlo.
-- **Sin `~K` no se redondea**: se calcula a precisión alta y punto.
+- **Campo 1**: decimales, en el orden `1 DecDet · 2 DecCantMed · 3 DecCantRend ·
+  4 DecImp · 5 DecNat · 6 DecPar · 7 Dec`. Ese orden no está claro en la norma;
+  es el que BC3manager verificó empíricamente.
+- **Campo 2**: coeficientes `CI \ GG \ BI \ BAJA \ IVA` en %. Al PEM solo le
+  afecta el CI, que se aplica por partida: `redondear(CD × (1+CI), DUO)`.
+- **Campo 3**: formato completo y preferente según FIEBDC-2016, en el orden
+  `DRC DC _ DFS DRS _ DUO DI DES DN DD DS DSP DEC` — **con dos huecos vacíos**.
+  Trae además los decimales de medición (DN, DD, DS, DSP) que el campo 1 no
+  tiene. Sobrescribe al campo 1.
 
-Cadena de redondeo (la misma que BC3manager tiene verificada contra informes
-reales de Presto): en cada línea de medición se redondea **cada factor antes de
+Cadena de redondeo: en cada línea de medición se redondea **cada factor antes de
 multiplicar** (uds → DN, dimensiones → DD), el parcial a DSP y el total a DS. En
 la descomposición: precio básico a DES → subtotal a DI → precio de partida a DUO
 → CI encima → importe = precio × medición → capítulos = suma de sus hijos.
 
-Dos trampas que ya están documentadas y que cuestan caro descubrir solo:
+Tres cosas que cuestan caro descubrir solas:
 
-- **Redondeo mitad-arriba y exacto.** `Math.round()` sobre floats binarios se
-  equivoca justo donde importa (`0,015 × 27,49 = 0,41234999…` daría `0,4123` en
-  vez de `0,4124`). Como aquí no se pueden meter dependencias, hay que resolverlo
-  a mano, con enteros escalados o aritmética decimal propia. **Decidirlo antes de
-  escribir la primera multiplicación**, no después.
-- **Los hijos cuyo código empieza por `%`** no son precio × rendimiento: se
-  aplican sobre el acumulado de las líneas anteriores de esa misma
-  descomposición, así que hay que recorrerla en orden con una suma corriente. Y un
-  `%` dentro del desglose es un coste directo más — el CI global del `~K` se
-  aplica igual por encima.
+- **El `~C` de una partida declara el COSTE DIRECTO, sin CI**, y a menudo con más
+  decimales que DecPar (Alqueria declara `8,8638` donde Presto trabaja con
+  `8,86`, y muestra `9,39` con el 6% de CI encima). Por eso «Precio calculado»
+  enseña el CD en las partidas: es lo único comparable con lo que hay en el `~C`.
+  El total con CI va en el desglose del panel de detalle.
+- **Redondeo mitad-arriba y exacto.** `Math.round()` sobre floats se equivoca
+  justo donde importa (`0,015 × 27,49 = 0,41234999…` daría `0,4123` en vez de
+  `0,4124`). Resuelto en `decFrom/decMul/decRound` con BigInt: un decimal es
+  `{m,e} = m·10^-e` y el producto es exacto. `String(x)` de JS da la misma
+  representación corta que `str(x)` en Python, que es lo que usa BC3manager con
+  `Decimal` — por eso los dos coinciden.
+- **Los hijos cuyo código empieza por `%`** (o con unidad `%`) no son precio ×
+  rendimiento: se aplican sobre el acumulado de las líneas anteriores de esa
+  descomposición, así que se recorre en orden con suma corriente. Un `%` dentro
+  del desglose es un coste directo más — el CI global del `~K` va igual encima.
 
-Antes de implementar nada de esto, leer `../BC3manager/docs/formato-bc3.md`
-(sección «La cadena de redondeo») y contrastar el mapeo real de siglas a
-posiciones del campo 3 con `../BC3manager/bc3manager/io/lector.py::_reg_K` y con
-la spec en `FIEBDC/`.
+Referencia del formato y del cálculo: `../BC3manager/docs/formato-bc3.md`
+(sección «La cadena de redondeo»), `../BC3manager/bc3manager/core/model.py`
+(`recalcular`, `precio_con_ci`, `parcial_linea`) y `io/lector.py::_reg_K`.
+
+### Verificar el cálculo tras tocarlo
+
+Contrastar contra BC3manager, que está verificado contra informes reales de
+Presto. Cargar el archivo en el visor y comparar PEM, importes de capítulo y
+precios de partida con lo que da BC3manager como librería:
+
+```python
+from bc3manager.io.lector import leer_bc3
+p = leer_bc3(ruta); p.recalcular()
+p.presupuesto_total(); p.precio_con_ci(codigo); p._importe_recursivo(cod, padre)
+```
+
+Cuidado al probar en el navegador: `http.server` sirve de caché y se queda con la
+versión anterior del HTML. Recargar forzando (o añadir `?v=N`).
 
 ## Qué NO hacer
 

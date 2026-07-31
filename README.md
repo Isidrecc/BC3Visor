@@ -21,24 +21,34 @@ Lee `~V` (versión y programa emisor) · `~K` (coeficientes) · `~C` (conceptos 
 precio) · `~D` (descomposición: factor y rendimiento) · `~T` (descripciones) ·
 `~M` (mediciones). El resto de registros se ignora.
 
-De momento no calcula nada: no hay columna de importes, el total de una medición
-es el declarado en su `~M` y no la suma de sus líneas, y los coeficientes del
-`~K` (CI, GG, BI, baja, IVA) se muestran pero no se aplican. Del `~C` se toma el
-primer precio; los demás rótulos del `~V` son bancos de referencia del autor y se
-ignoran a propósito (la barra superior avisa de cuántos hay).
+Del `~C` se toma el primer precio; los demás rótulos del `~V` son bancos de
+referencia del autor y se ignoran a propósito (la barra superior avisa de cuántos
+hay).
+
+## Y además lo recalcula, para delatar descuadres
+
+Al lado de **Precio archivo** hay una columna **Precio calculado**, en verde si
+cuadra con lo que declara el archivo y en rojo si no:
+
+- En una **partida**, el coste directo que sale de sumar su descomposición. En el
+  panel de detalle, la cadena completa como en el informe de Presto: suma la
+  partida, costes indirectos, redondeo y total de partida.
+- En un **capítulo**, la suma de los importes de sus partidas, contra el total que
+  el capítulo declara.
+- Arriba, el **PEM calculado** contra el declarado en la raíz.
+
+El cálculo replica el de Presto con los decimales y coeficientes que declara el
+propio `~K` del archivo, redondeando en la misma cadena y el mismo orden — si no,
+cualquier presupuesto descuadraría por céntimos de redondeo y el aviso no
+significaría nada. No hay tolerancia: o cuadra al último decimal o sale en rojo.
+
+Lo declarado y lo calculado nunca se mezclan, y el visor no arregla nada. Si algo
+no cuadra, lo dice y ahí lo deja.
 
 ## En qué está trabajando
 
-Calcular los importes de las partidas y comprobar si los totales de capítulos y
-presupuesto cuadran con los que el archivo declara, avisando cuando no.
-
-Con una condición: el cálculo tiene que replicar el de Presto usando los
-decimales y coeficientes que declara el propio `~K` del archivo, redondeando en
-la misma cadena y en el mismo orden. Calculado a la ligera, cualquier presupuesto
-descuadra por céntimos de redondeo y el aviso deja de significar nada.
-
-Lo declarado y lo calculado se seguirán distinguiendo siempre en pantalla. Y el
-visor no arreglará nada: si algo no cuadra, lo dice.
+Que el descuadre no solo se vea, sino que se pueda seguir: localizar de un
+vistazo qué partidas lo provocan dentro de un capítulo que no cuadra.
 
 ## Lo que no va a hacer
 

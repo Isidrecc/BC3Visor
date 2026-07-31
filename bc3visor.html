@@ -2,8 +2,8 @@
 <html lang="es" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>BC3visor</title>
 <style>
-:root,html[data-theme=dark]{--bg:#0f1117;--bg-card:#1a1d27;--bg-hover:#222635;--bg-active:#2a2f3f;--border:#2e3346;--border-light:#383d52;--text:#e4e6ed;--text-dim:#8b90a5;--text-muted:#5c6178;--accent:#4f8ff7;--accent-soft:rgba(79,143,247,.12);--accent-hover:#6ba1f9;--green:#3ecf8e;--green-soft:rgba(62,207,142,.12);--amber:#f0b429;--red:#ef6b6b;--radius:8px;--radius-lg:12px;--shadow:0 2px 12px rgba(0,0,0,.3)}
-html[data-theme=light]{--bg:#f5f6f8;--bg-card:#ffffff;--bg-hover:#eef0f4;--bg-active:#e4e7ee;--border:#d8dbe3;--border-light:#c8ccd6;--text:#1a1d27;--text-dim:#555a6e;--text-muted:#888da1;--accent:#2b6fd0;--accent-soft:rgba(43,111,208,.1);--accent-hover:#3b7fe0;--green:#1a9960;--green-soft:rgba(26,153,96,.1);--amber:#c8900a;--red:#d04040;--shadow:0 2px 8px rgba(0,0,0,.08)}
+:root,html[data-theme=dark]{--bg:#0f1117;--bg-card:#1a1d27;--bg-hover:#222635;--bg-active:#2a2f3f;--border:#2e3346;--border-light:#383d52;--text:#e4e6ed;--text-dim:#8b90a5;--text-muted:#5c6178;--accent:#4f8ff7;--accent-soft:rgba(79,143,247,.12);--accent-hover:#6ba1f9;--green:#3ecf8e;--green-soft:rgba(62,207,142,.12);--amber:#f0b429;--red:#ef6b6b;--red-soft:rgba(239,107,107,.14);--radius:8px;--radius-lg:12px;--shadow:0 2px 12px rgba(0,0,0,.3)}
+html[data-theme=light]{--bg:#f5f6f8;--bg-card:#ffffff;--bg-hover:#eef0f4;--bg-active:#e4e7ee;--border:#d8dbe3;--border-light:#c8ccd6;--text:#1a1d27;--text-dim:#555a6e;--text-muted:#888da1;--accent:#2b6fd0;--accent-soft:rgba(43,111,208,.1);--accent-hover:#3b7fe0;--green:#1a9960;--green-soft:rgba(26,153,96,.1);--amber:#c8900a;--red:#d04040;--red-soft:rgba(208,64,64,.1);--shadow:0 2px 8px rgba(0,0,0,.08)}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 button{cursor:pointer;font-family:inherit}
@@ -27,7 +27,7 @@ button{cursor:pointer;font-family:inherit}
 .tree-panel{width:55%;min-width:480px;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
 .detail-panel{flex:1;overflow-y:auto;padding:20px 24px;min-width:380px}
 .tree-scroll{overflow:auto;flex:1}
-.ttable{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;min-width:640px}
+.ttable{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;min-width:750px}
 .ttable thead{position:sticky;top:0;z-index:5}
 .ttable thead th{background:var(--bg-card);color:var(--text-dim);text-align:left;padding:9px 8px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border);user-select:none}
 .ttable thead th.num{text-align:right}
@@ -37,7 +37,13 @@ button{cursor:pointer;font-family:inherit}
 .ttable tbody tr.active td{background:var(--bg-active);box-shadow:inset 3px 0 0 var(--accent)}
 .ttable .num{text-align:right;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:11px;font-variant-numeric:tabular-nums}
 .ttable .cod{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:11px;color:var(--text-dim)}
-.col-cod{width:110px}.col-ud{width:44px}.col-cant{width:78px}.col-precio{width:88px}
+.col-cod{width:110px}.col-ud{width:44px}.col-cant{width:78px}.col-precio{width:92px}.col-calc{width:104px}
+/* Celdas de valor CALCULADO: verde si cuadra con lo que declara el archivo,
+   rojo si no. Sin color cuando el archivo no declara nada que comparar. */
+.calc{display:inline-block;padding:1px 5px;border-radius:3px}
+.calc-ok{background:var(--green-soft);color:var(--green)}
+.calc-mal{background:var(--red-soft);color:var(--red);font-weight:700}
+.calc-solo{color:var(--text-dim)}
 .ttable tr.row-cap td{background:var(--bg-card)}
 .ttable tr.row-cap td.col-resumen{font-weight:600}
 .ttable tr.row-cap:hover td{background:var(--bg-hover)}
@@ -87,7 +93,7 @@ button{cursor:pointer;font-family:inherit}
 <header class="header">
   <div class="logo">BC3<span>visor</span></div><div class="sep"></div>
   <span id="fileName" style="font-size:12px;color:var(--text-muted);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-  <span class="rotulo">solo lectura · números tal como los declara el archivo</span>
+  <span class="rotulo">nunca escribe · lo declarado y lo calculado, separados</span>
   <div class="header-right">
     <button class="btn" onclick="document.getElementById('fileInput').click()">Abrir BC3</button>
     <input type="file" id="fileInput" accept=".bc3,.BC3" style="display:none" onchange="if(this.files[0])cargarArchivo(this.files[0])">
@@ -101,7 +107,7 @@ button{cursor:pointer;font-family:inherit}
     ondrop="event.preventDefault();this.classList.remove('drag');if(event.dataTransfer.files[0])cargarArchivo(event.dataTransfer.files[0])">
     <h2>Abre un archivo BC3</h2><p>Arrastra aquí o haz clic</p>
     <button class="btn btn-accent">Seleccionar archivo</button>
-    <p class="nota">El visor no modifica el archivo: enseña los números que declara, sin recalcular nada.</p>
+    <p class="nota">El visor no modifica el archivo. Enseña lo que declara y, al lado, lo que sale de recalcularlo.</p>
   </div>
 </div>
 <div id="mainApp" style="display:none">
@@ -113,7 +119,8 @@ button{cursor:pointer;font-family:inherit}
         <th class="col-resumen">Descripción</th>
         <th class="col-ud">Ud</th>
         <th class="num col-cant">Cantidad</th>
-        <th class="num col-precio">Precio</th>
+        <th class="num col-precio">Precio archivo</th>
+        <th class="num col-calc">Precio calculado</th>
       </tr></thead><tbody id="treeBody"></tbody></table>
     </div></div>
     <div class="detail-panel" id="detailPanel"><div class="detail-empty">Selecciona un concepto</div></div>
@@ -123,12 +130,14 @@ button{cursor:pointer;font-family:inherit}
 <script>
 'use strict';
 /* ============================================================================
-   BC3visor — visor de solo lectura de presupuestos BC3 (FIEBDC-3).
+   BC3visor — visor de presupuestos BC3 (FIEBDC-3). Nunca escribe en el archivo.
 
-   REGLA DE ORO: enseñar los números que el archivo declara, sin recalcularlos.
-   Todos los valores numéricos se conservan como CADENA tal cual vienen en el
-   archivo; la única transformación es de puntuación ("1234.56" → "1.234,56").
-   Aquí no hay ni una suma ni una multiplicación sobre datos del presupuesto.
+   REGLA: cada número es DECLARADO o CALCULADO, y se distinguen siempre.
+   - Declarado: cadena tal cual viene del archivo (campos *Raw). La única
+     transformación al mostrarlo es de puntuación ("1234.56" → "1.234,56").
+   - Calculado: lo produce el visor replicando la cadena de redondeo de Presto
+     con los decimales del ~K. Va marcado en verde si cuadra con lo declarado
+     y en rojo si no. Un descuadre se enseña, nunca se corrige por lo bajo.
    ==========================================================================*/
 
 // ---- Decodificación --------------------------------------------------------
@@ -179,12 +188,31 @@ function nuevoConcepto(codigo){
   return {codigo, unidad:'', resumen:'', precioRaw:'', numPrecios:0, fecha:'',
     tipoF:'', texto:'', hijos:[],          // hijos: [{codigo, factorRaw, rendRaw}]
     mediciones:new Map(),                  // codPadre → {totalRaw, lineas:[...]}
-    tipo:''};                              // 'capitulo' | 'partida' | 'unitario'
+    tipo:'',                               // 'capitulo' | 'partida' | 'unitario'
+    precioCalc:null};                      // coste directo calculado (sin CI)
 }
 
 const P = {   // estado del presupuesto cargado
   conceptos:new Map(), raiz:'', version:'', programa:'', rotulos:[],
   tieneK:false, ciRaw:'', ggRaw:'', biRaw:'', bajaRaw:'', ivaRaw:'', moneda:''
+};
+
+// Decimales y coeficientes de redondeo que declara el ~K. Nada de esto se
+// hardcodea: si el archivo no trae ~K, K.activo queda en false y se calcula a
+// precisión alta. Los valores de aquí son solo el defecto de la configuración
+// habitual del sector, para archivos con un ~K incompleto.
+const K = {
+  activo:false, ciPct:0,
+  decParcial:2,          // DSP / DecDet — parcial de cada línea de medición
+  decCantMed:2,          // DS  / DecCantMed — total de la medición
+  decCantRend:3,         // DRS / DecCantRend — rendimientos y % implícitos
+  decSubtotal:2,         // DI  / DecImp — subtotales de la descomposición
+  decNatural:2,          // DES / DecNat — precios de conceptos básicos
+  decPrecioPartida:2,    // DUO / DecPar — precio de partida (y el CI)
+  decPrecioCapitulo:2,   // DC  / Dec — precio de capítulo
+  decImporte:2,          // precio × medición (por convención, el de capítulo)
+  decNum:2,              // DN — nº de partes iguales de una línea
+  decDim:2               // DD — dimensiones (largo/ancho/alto)
 };
 
 function get(cod){ return P.conceptos.get(cod); }
@@ -198,6 +226,10 @@ function getOrCreate(cod){
 function parsearBC3(texto){
   P.conceptos=new Map(); P.raiz=''; P.version=''; P.programa=''; P.rotulos=[];
   P.tieneK=false; P.ciRaw=''; P.ggRaw=''; P.biRaw=''; P.bajaRaw=''; P.ivaRaw=''; P.moneda='';
+  Object.assign(K,{activo:false, ciPct:0, decParcial:2, decCantMed:2, decCantRend:3,
+    decSubtotal:2, decNatural:2, decPrecioPartida:2, decPrecioCapitulo:2,
+    decImporte:2, decNum:2, decDim:2});
+  cacheImporte.clear();
 
   for(const reg of separarRegistros(texto)){
     if(reg.length<2) continue;
@@ -214,6 +246,7 @@ function parsearBC3(texto){
   resolverAliasHash();
   clasificarTipos();
   detectarRaiz();
+  calcularPrecios();   // clasificarTipos primero: el redondeo depende del tipo
 }
 
 const campo=(c,i)=>(i<c.length?c[i]:'');
@@ -231,10 +264,49 @@ function regV(c){
 function regK(c){
   // ~K | DECIMALES\...\MONEDA | CI\GG\BI\BAJA\IVA | campo3 completo |
   P.tieneK=true;
+  K.activo=true;
+  const entero=(arr,i,def)=>{
+    const v=(arr[i]||'').trim();
+    return /^\d+$/.test(v)?parseInt(v,10):def;
+  };
+  // Campo 1 — decimales. El orden no está claro en la norma; es el que
+  // BC3manager verificó empíricamente con un archivo que usa un valor distinto
+  // por parámetro:  1 DecDet · 2 DecCantMed · 3 DecCantRend · 4 DecImp ·
+  //                 5 DecNat · 6 DecPar · 7 Dec
+  const f1=campo(c,1).split('\\');
+  K.decParcial        = entero(f1,1,K.decParcial);
+  K.decCantMed        = entero(f1,2,K.decCantMed);
+  K.decCantRend       = entero(f1,3,K.decCantRend);
+  K.decSubtotal       = entero(f1,4,K.decSubtotal);
+  K.decNatural        = entero(f1,5,K.decNatural);
+  K.decPrecioPartida  = entero(f1,6,K.decPrecioPartida);
+  K.decPrecioCapitulo = entero(f1,7,K.decPrecioCapitulo);
+  K.decImporte        = K.decPrecioCapitulo;
+  // Campo 2 — coeficientes económicos, en %. Solo el CI entra en el PEM.
   const coefs=campo(c,2).split('\\');
   const v=i=>(i<coefs.length?coefs[i].trim():'');
   P.ciRaw=v(0); P.ggRaw=v(1); P.biRaw=v(2); P.bajaRaw=v(3); P.ivaRaw=v(4);
-  for(const tok of campo(c,1).split('\\')){
+  K.ciPct=toNum(P.ciRaw)/100;
+  // Campo 3 — formato completo y PREFERENTE según FIEBDC-2016 ("los programas
+  // deben leer el campo 3 y en su defecto el campo 1"). Trae además los
+  // decimales de medición (DN, DD, DS, DSP) que el campo 1 no tiene.
+  //   DRC \ DC \ \ DFS \ DRS \ \ DUO \ DI \ DES \ DN \ DD \ DS \ DSP \ DEC
+  //    0    1  2   3     4   5   6     7    8     9   10   11   12    13
+  const c3=campo(c,3);
+  if(c3){
+    const f3=c3.split('\\');
+    K.decPrecioCapitulo = entero(f3,1, K.decPrecioCapitulo);  // DC
+    K.decCantRend       = entero(f3,4, K.decCantRend);        // DRS
+    K.decPrecioPartida  = entero(f3,6, K.decPrecioPartida);   // DUO
+    K.decSubtotal       = entero(f3,7, K.decSubtotal);        // DI
+    K.decNatural        = entero(f3,8, K.decNatural);         // DES
+    K.decNum            = entero(f3,9, K.decNum);             // DN
+    K.decDim            = entero(f3,10,K.decDim);             // DD
+    K.decCantMed        = entero(f3,11,K.decCantMed);         // DS
+    K.decParcial        = entero(f3,12,K.decParcial);         // DSP
+    K.decImporte        = K.decPrecioCapitulo;
+  }
+  for(const tok of f1){
     const t=tok.trim();
     if(t && !/^\d+$/.test(t)){ P.moneda=t; break; }
   }
@@ -379,6 +451,213 @@ function detectarRaiz(){
   P.raiz='OBRA##';
 }
 
+/* ============================================================================
+   CÁLCULO
+
+   Todo lo de aquí abajo produce valores CALCULADOS, que en la interfaz van
+   siempre separados de los declarados. Replica la cadena de redondeo de Presto
+   usando los decimales del ~K del propio archivo — verificada en BC3manager
+   contra informes reales (ver ../BC3manager/docs/formato-bc3.md).
+   ==========================================================================*/
+
+// ---- Aritmética decimal exacta --------------------------------------------
+// Presto redondea mitad-arriba sobre valores DECIMALES. Hacerlo con floats
+// binarios se equivoca justo en los empates: 0,015 × 27,49 da 0,41234999… y
+// bajaría a 0,4123 en vez de subir a 0,4124. Aquí un decimal es {m,e} = m·10^-e
+// con m en BigInt, así que el producto es exacto y el empate se ve.
+// String(x) de JS da la representación más corta que reconstruye el float —
+// el mismo criterio que str(x) en Python, que es lo que usa BC3manager.
+
+function decFrom(x){
+  let s = typeof x==='number' ? String(x) : String(x==null?'':x).trim();
+  if(s==='') return {m:0n,e:0};
+  let neg=false;
+  if(s[0]==='+') s=s.slice(1);
+  else if(s[0]==='-'){ neg=true; s=s.slice(1); }
+  let exp=0;
+  const ie=s.search(/[eE]/);
+  if(ie>=0){ exp=parseInt(s.slice(ie+1),10)||0; s=s.slice(0,ie); }
+  let e=0;
+  const pt=s.indexOf('.');
+  if(pt>=0){ e=s.length-pt-1; s=s.slice(0,pt)+s.slice(pt+1); }
+  if(!/^\d+$/.test(s)) return {m:0n,e:0};
+  let m=BigInt(s);
+  e-=exp;
+  if(e<0){ m*=10n**BigInt(-e); e=0; }
+  return {m:neg?-m:m, e};
+}
+const decMul=(a,b)=>({m:a.m*b.m, e:a.e+b.e});
+
+// Redondeo mitad-arriba: en el empate se aleja del cero (ROUND_HALF_UP).
+function decRound(d,dec){
+  if(d.e<=dec) return {m:d.m*10n**BigInt(dec-d.e), e:dec};
+  const p=10n**BigInt(d.e-dec);
+  const neg=d.m<0n, a=neg?-d.m:d.m;
+  let q=a/p;
+  if((a%p)*2n>=p) q+=1n;
+  return {m:neg?-q:q, e:dec};
+}
+function decNum(d){
+  const neg=d.m<0n;
+  let s=(neg?-d.m:d.m).toString();
+  if(d.e>0){
+    s=s.padStart(d.e+1,'0');
+    s=s.slice(0,s.length-d.e)+'.'+s.slice(s.length-d.e);
+  }
+  return (neg?-1:1)*Number(s);
+}
+const redondea=(x,dec)=>decNum(decRound(decFrom(x),dec));
+const multRed=(a,b,dec)=>decNum(decRound(decMul(decFrom(a),decFrom(b)),dec));
+
+// Cadena cruda del archivo → número. Admite coma o punto decimal; vacío → 0.
+function toNum(raw){
+  if(raw==null) return 0;
+  const s=String(raw).trim().replace(',','.');
+  if(s==='') return 0;
+  const v=parseFloat(s);
+  return isFinite(v)?v:0;
+}
+
+// ---- Precio de cada concepto (de abajo arriba) -----------------------------
+// Un hijo cuyo código empieza por '%' (o cuya unidad es '%') no es
+// precio × rendimiento: se aplica sobre el acumulado de las líneas ANTERIORES
+// de la misma descomposición. Por eso se recorre en orden con suma corriente.
+function esPorcentaje(c){
+  if(!c) return false;
+  if((c.unidad||'').trim()==='%') return true;
+  return (c.codigo||'').startsWith('%');
+}
+// Cantidad de una línea del ~D: factor × rendimiento, y un campo vacío vale 1
+// (pero un 0 explícito vale 0 — es una partida que no se mide en ese padre).
+const cantidadHijo=h=>
+  (h.factorRaw===''?1:toNum(h.factorRaw))*(h.rendRaw===''?1:toNum(h.rendRaw));
+
+function calcularPrecios(){
+  const memo=new Map(), enProceso=new Set();
+  function precioDe(cod){
+    if(memo.has(cod)) return memo.get(cod);
+    const c=get(cod);
+    if(!c) return 0;
+    // Hoja: su precio es dato. Presto guarda los precios de conceptos básicos
+    // ya redondeados a DecNat; si el ~C trae más decimales hay que redondear
+    // ANTES de multiplicar por el rendimiento o el subtotal arrastra el error.
+    if(!c.hijos.length){
+      let p=toNum(c.precioRaw);
+      if(K.activo && c.tipo==='unitario') p=redondea(p,K.decNatural);
+      memo.set(cod,p); c.precioCalc=p;
+      return p;
+    }
+    if(enProceso.has(cod)){          // ciclo en el archivo: cortar por lo sano
+      const p=toNum(c.precioRaw);
+      memo.set(cod,p);
+      return p;
+    }
+    enProceso.add(cod);
+    let total=0;
+    for(const h of c.hijos){
+      const hc=get(h.codigo), cant=cantidadHijo(h);
+      let sub;
+      if(hc && esPorcentaje(hc)){
+        // Presto lo trata como una cantidad implícita sobre el acumulado:
+        //   cantidad = acumulado × coef / precio_%   (coef 0,07 · precio_% 7)
+        const precioPct=precioDe(h.codigo);
+        if(precioPct){
+          let qty=total*cant/precioPct;
+          if(K.activo){
+            qty=redondea(qty,K.decCantRend);
+            sub=multRed(precioPct,qty,K.decSubtotal);
+          }else sub=precioPct*qty;
+        }else{
+          sub=total*cant;
+          if(K.activo) sub=redondea(sub,K.decSubtotal);
+        }
+      }else{
+        sub=K.activo ? multRed(precioDe(h.codigo),cant,K.decSubtotal)
+                     : precioDe(h.codigo)*cant;
+      }
+      total+=sub;
+    }
+    enProceso.delete(cod);
+    total=redondea(total, K.activo
+      ? (c.tipo==='capitulo'?K.decPrecioCapitulo:K.decPrecioPartida)
+      : 4);
+    memo.set(cod,total); c.precioCalc=total;
+    return total;
+  }
+  for(const cod of P.conceptos.keys()) precioDe(cod);
+}
+
+// ---- Mediciones ------------------------------------------------------------
+// Presto NO suma los parciales en crudo: redondea CADA factor antes de
+// multiplicar (uds→DN, dimensiones→DD), el parcial a DSP y el total a DS.
+// Un factor a 0 es neutro: una línea «5 / 0 / 0 / 0» mide 5, no 0.
+function parcialLinea(ln){
+  const factores=[[toNum(ln.nRaw),K.decNum],[toNum(ln.lRaw),K.decDim],
+                  [toNum(ln.aRaw),K.decDim],[toNum(ln.hRaw),K.decDim]];
+  if(!K.activo){
+    let p=1, alguno=false;
+    for(const [v] of factores) if(v!==0){ p*=v; alguno=true; }
+    return alguno?p:0;
+  }
+  let acc={m:1n,e:0}, alguno=false;
+  for(const [v,dec] of factores)
+    if(v!==0){ acc=decMul(acc,decRound(decFrom(v),dec)); alguno=true; }
+  return alguno?decNum(decRound(acc,K.decParcial)):0;
+}
+
+function totalMedicion(med){
+  if(!med) return 0;
+  // Sin líneas de detalle es una partida alzada: vale el total declarado.
+  if(!med.lineas.length) return toNum(med.totalRaw);
+  let suma=0;
+  for(const ln of med.lineas) suma+=parcialLinea(ln);
+  return K.activo?redondea(suma,K.decCantMed):suma;
+}
+function medicionCalculada(cod,padre){
+  const c=get(cod);
+  if(!c) return 0;
+  return totalMedicion(c.mediciones.get(padre)||c.mediciones.get('__sin_padre__'));
+}
+
+// ---- Precio con CI e importes ---------------------------------------------
+// El estándar define el precio de una unidad de obra como coste directo +
+// coste indirecto, y Presto aplica el % del ~K a todas las partidas por igual.
+// Las líneas '%' internas del desglose ya están dentro del CD: son un coste
+// más, NO el CI global, así que el CI se aplica igualmente por encima.
+function precioConCI(cod){
+  const c=get(cod);
+  if(!c) return 0;
+  const cd=c.precioCalc!==null?c.precioCalc:toNum(c.precioRaw);
+  if(K.ciPct && c.tipo==='partida')
+    return K.activo?multRed(cd,1+K.ciPct,K.decPrecioPartida)
+                   :redondea(cd*(1+K.ciPct),2);
+  return cd;
+}
+
+const cacheImporte=new Map();
+function importeCalculado(cod,padre){
+  const clave=padre+'>'+cod;
+  if(cacheImporte.has(clave)) return cacheImporte.get(clave);
+  cacheImporte.set(clave,0);            // corta ciclos mientras se resuelve
+  const c=get(cod);
+  let v=0;
+  if(c){
+    if(c.tipo==='capitulo' && c.hijos.length){
+      // Importe de capítulo = SIEMPRE la suma de los importes de sus hijos.
+      let t=0;
+      for(const h of c.hijos) t+=importeCalculado(h.codigo,cod);
+      v=redondea(t,K.activo?K.decImporte:2);
+    }else{
+      // Partida: precio (con CI) × medición. Sin medición, importe 0.
+      const med=medicionCalculada(cod,padre);
+      v=K.activo?multRed(precioConCI(cod),med,K.decImporte)
+                :redondea(precioConCI(cod)*med,2);
+    }
+  }
+  cacheImporte.set(clave,v);
+  return v;
+}
+
 // ---- Formato de números (puntuación española, SIN tocar el valor) ---------
 // "1234.56" → "1.234,56". Conserva exactamente los dígitos del archivo:
 // ni redondea, ni rellena decimales, ni convierte a float.
@@ -399,6 +678,38 @@ function esc(s){
 function celdaNum(raw){
   if(!raw) return '';
   return `<span title="En el archivo: ${esc(raw)}">${esc(fmtNum(raw))}</span>`;
+}
+// Formato de un valor CALCULADO: nº fijo de decimales y puntuación española.
+// Al contrario que fmtNum (que respeta la cadena del archivo letra a letra),
+// aquí el nº de decimales lo fija el ~K, porque el valor lo produce el visor.
+const fmtCalc=(v,dec)=>fmtNum(redondea(v,dec).toFixed(dec));
+
+// Celda de valor calculado, contrastada contra lo que declara el archivo.
+// Coinciden = el declarado, redondeado a los mismos decimales, es idéntico.
+// No hay tolerancia arbitraria: o cuadra al último decimal o no cuadra.
+function celdaCalc(valor,declaradoRaw,dec,queEs){
+  if(valor==null || !isFinite(valor)) return '';
+  const txt=fmtCalc(valor,dec);
+  if(String(declaradoRaw||'').trim()===''
+     || !/^[+-]?\d+(?:[.,]\d+)?$/.test(String(declaradoRaw).trim()))
+    return `<span class="calc calc-solo" title="${esc(queEs)} — el archivo no declara un valor con el que compararlo">${esc(txt)}</span>`;
+  const decl=redondea(toNum(declaradoRaw),dec);
+  const cuadra=decl.toFixed(dec)===valor.toFixed(dec);
+  const dif=redondea(valor-decl,dec);
+  const t=cuadra
+    ? `${queEs}. Coincide con lo que declara el archivo (${fmtNum(declaradoRaw)}).`
+    : `${queEs}. NO coincide: el archivo declara ${fmtNum(declaradoRaw)} y sale ${txt} (diferencia ${fmtCalc(dif,dec)}).`;
+  return `<span class="calc ${cuadra?'calc-ok':'calc-mal'}" title="${esc(t)}">${esc(txt)}</span>`;
+}
+// Valor calculado que corresponde a cada fila, comparable con su "Precio archivo":
+//   capítulo → suma de los importes de sus hijos (el ~C declara el total)
+//   partida  → coste directo, suma de su descomposición (el ~C declara el CD)
+function calcDeFila(cod,padre,c){
+  if(c.tipo==='capitulo')
+    return celdaCalc(importeCalculado(cod,padre), c.precioRaw,
+      K.activo?K.decImporte:2, 'Suma de los importes de sus hijos');
+  return celdaCalc(c.precioCalc, c.precioRaw,
+    K.activo?K.decPrecioPartida:2, 'Coste directo: suma de su descomposición');
 }
 
 // ---- Carga -----------------------------------------------------------------
@@ -456,7 +767,15 @@ function renderStats(){
   html+=st('Capítulos',String(nCap));
   html+=st('Partidas',String(nPart));
   if(raiz&&raiz.precioRaw)
-    html+=`<div class="stat" title="Precio del concepto raíz tal como lo declara el ~C (en el archivo: ${esc(raiz.precioRaw)})"><span class="stat-label">Precio obra (~C)</span><span class="stat-value total">${esc(fmtNum(raiz.precioRaw))} €</span></div>`;
+    html+=`<div class="stat" title="Precio del concepto raíz tal como lo declara el ~C (en el archivo: ${esc(raiz.precioRaw)})"><span class="stat-label">PEM archivo</span><span class="stat-value total">${esc(fmtNum(raiz.precioRaw))} €</span></div>`;
+  // PEM calculado: suma de los importes de los capítulos de primer nivel.
+  if(raiz&&raiz.hijos.length){
+    const dec=K.activo?K.decImporte:2;
+    let pem=0;
+    for(const h of raiz.hijos) pem+=importeCalculado(h.codigo,P.raiz);
+    pem=redondea(pem,dec);
+    html+=`<div class="stat"><span class="stat-label">PEM calculado</span><span class="stat-value" style="font-size:18px">${celdaCalc(pem,raiz.precioRaw,dec,'Suma de los importes de todos los capítulos')} €</span></div>`;
+  }
   if(P.tieneK){
     const co=(lbl,raw)=>raw!==''?`<div class="stat" title="Declarado en el registro ~K — el visor no lo aplica"><span class="stat-label">${lbl}</span><span class="stat-value coef">${esc(fmtNum(raw))} %</span></div>`:'';
     html+=co('C. indirectos',P.ciRaw)+co('G. generales',P.ggRaw)+co('B. industrial',P.biRaw)+co('Baja',P.bajaRaw)+co('IVA',P.ivaRaw);
@@ -488,7 +807,7 @@ function renderTree(){
   const tb=document.getElementById('treeBody');
   tb.innerHTML='';
   const raiz=get(P.raiz);
-  if(!raiz){ tb.innerHTML='<tr><td colspan="5" style="color:var(--text-muted);padding:16px">No se encontró la estructura del presupuesto</td></tr>'; return; }
+  if(!raiz){ tb.innerHTML='<tr><td colspan="6" style="color:var(--text-muted);padding:16px">No se encontró la estructura del presupuesto</td></tr>'; return; }
   for(const h of raiz.hijos) filaNodo(tb,h.codigo,P.raiz,0);
 }
 
@@ -512,7 +831,8 @@ function filaNodo(tbody,cod,padre,nivel){
       `${esc(c.resumen)}</td>`+
     `<td class="col-ud">${esc(c.unidad)}</td>`+
     `<td class="num col-cant">${esCap?'':celdaNum(cant.raw)}</td>`+
-    `<td class="num col-precio">${celdaNum(c.precioRaw)}</td>`;
+    `<td class="num col-precio">${celdaNum(c.precioRaw)}</td>`+
+    `<td class="num col-calc">${calcDeFila(cod,padre,c)}</td>`;
   tr.onclick=()=>{
     if(esCap && hijosVisibles.length){
       abiertos.has(clave)?abiertos.delete(clave):abiertos.add(clave);
@@ -546,6 +866,25 @@ function renderDetail(cod,padre){
     h+=`<div class="detail-meta-item"><span class="detail-meta-label">Fecha</span><span class="detail-meta-value">${esc(c.fecha)}</span></div>`;
   h+=`</div></div>`;
 
+  // Capítulo: el total que declara el ~C contra la suma de los importes de sus
+  // hijos. Es la comprobación que más descuadres destapa.
+  if(c.tipo==='capitulo' && c.hijos.length){
+    const di=K.activo?K.decImporte:2;
+    const imp=importeCalculado(cod,padre), decl=String(c.precioRaw||'').trim();
+    h+=`<div class="detail-section"><h3>Importe <span class="hint">declarado en el ~C · calculado sumando sus hijos</span></h3>
+      <div class="desglose-precio" style="margin-left:0">
+        <div class="dp-row"><span class="dp-lbl">Total declarado (~C)</span><span class="dp-val">${decl!==''?esc(fmtNum(decl))+' €':'—'}</span></div>
+        <div class="dp-row"><span class="dp-lbl">Suma de sus hijos</span><span class="dp-val">${celdaCalc(imp,c.precioRaw,di,'Suma de los importes de sus hijos')} €</span></div>
+      </div>`;
+    if(decl!==''){
+      const cuadra=redondea(toNum(decl),di).toFixed(di)===imp.toFixed(di);
+      h+=`<div class="dp-nota" style="text-align:left;padding-left:10px">${cuadra
+        ? 'Cuadra con lo que declara el archivo.'
+        : `<span style="color:var(--red)">Descuadre de ${esc(fmtCalc(imp-toNum(decl),di))} € respecto a lo declarado.</span>`}</div>`;
+    }
+    h+=`</div>`;
+  }
+
   // Descripción larga (~T)
   if(c.texto)
     h+=`<div class="detail-section"><h3>Descripción <span class="hint">registro ~T</span></h3>
@@ -575,15 +914,36 @@ function renderDetail(cod,padre){
       </tr>`;
     }
     h+=`</tbody></table>`;
-    // Aplicación del coste directo, como en BC3Manager pero sin calcular:
-    // el precio del ~C es el dato; el CI del ~K se enseña, no se aplica.
+    // Desglose del precio, como el informe de Presto:
+    //   Suma la partida (CD) + Costes indirectos + Redondeo = TOTAL PARTIDA
     if(c.tipo==='partida'){
+      const dp=K.activo?K.decPrecioPartida:2;
+      const cd=c.precioCalc!==null?c.precioCalc:0;   // coste directo calculado
+      const total=precioConCI(cod);                  // CD + CI, ya redondeado
+      const ciImp=cd*K.ciPct;                        // importe del CI sobre el CD
+      const fila=(lbl,val,extra='')=>
+        `<div class="dp-row${extra}"><span class="dp-lbl">${lbl}</span><span class="dp-val">${val}</span></div>`;
       h+=`<div class="desglose-precio">`;
-      if(P.tieneK && P.ciRaw!=='' && P.ciRaw!=='0')
-        h+=`<div class="dp-row"><span class="dp-lbl">Costes indirectos declarados (~K)</span><span class="dp-val">${esc(fmtNum(P.ciRaw))} %</span></div>`;
-      h+=`<div class="dp-row dp-total"><span class="dp-lbl">Precio partida (~C)</span><span class="dp-val" title="En el archivo: ${esc(c.precioRaw)}">${c.precioRaw?esc(fmtNum(c.precioRaw))+' €':'—'}</span></div>
-      </div>
-      <div class="dp-nota">Números tal como los declara el archivo — el visor no suma el desglose ni aplica el CI.</div>`;
+      h+=fila('Suma la partida',esc(fmtCalc(cd,4))+' €');
+      if(K.ciPct){
+        h+=fila(`Costes indirectos &nbsp;<span style="color:var(--accent)">${esc(fmtNum(P.ciRaw))} %</span>`,
+                esc(fmtCalc(ciImp,4))+' €');
+        h+=fila('Redondeo',esc(fmtCalc(total-cd-ciImp,4))+' €');
+      }
+      h+=fila('TOTAL PARTIDA',esc(fmtCalc(total,dp))+' €',' dp-total');
+      h+=`</div>`;
+      // Contraste con lo que declara el ~C, que en una partida es el CD.
+      const declara=String(c.precioRaw||'').trim();
+      if(declara!==''){
+        const cuadra=redondea(toNum(declara),dp).toFixed(dp)===redondea(cd,dp).toFixed(dp);
+        h+=`<div class="dp-nota">${cuadra
+          ? `La suma cuadra con el coste directo que declara el ~C (${esc(fmtNum(declara))}).`
+          : `<span style="color:var(--red)">El ~C declara un coste directo de ${esc(fmtNum(declara))} — la suma del desglose da ${esc(fmtCalc(cd,dp))}.</span>`}</div>`;
+      }
+      // Importe en este padre: el número que suma al capítulo.
+      const medImp=medicionCalculada(cod,padre);
+      if(medImp)
+        h+=`<div class="dp-nota">Importe en ${esc(padre||'este capítulo')}: ${esc(fmtCalc(total,dp))} × ${esc(fmtCalc(medImp,K.activo?K.decCantMed:3))} = <strong>${esc(fmtCalc(importeCalculado(cod,padre),K.activo?K.decImporte:2))} €</strong></div>`;
     }
   }
 
