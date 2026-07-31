@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BC3visor</title>
+<style>
+:root,html[data-theme=dark]{--bg:#0f1117;--bg-card:#1a1d27;--bg-hover:#222635;--bg-active:#2a2f3f;--border:#2e3346;--border-light:#383d52;--text:#e4e6ed;--text-dim:#8b90a5;--text-muted:#5c6178;--accent:#4f8ff7;--accent-soft:rgba(79,143,247,.12);--accent-hover:#6ba1f9;--green:#3ecf8e;--green-soft:rgba(62,207,142,.12);--amber:#f0b429;--red:#ef6b6b;--radius:8px;--radius-lg:12px;--shadow:0 2px 12px rgba(0,0,0,.3)}
+html[data-theme=light]{--bg:#f5f6f8;--bg-card:#ffffff;--bg-hover:#eef0f4;--bg-active:#e4e7ee;--border:#d8dbe3;--border-light:#c8ccd6;--text:#1a1d27;--text-dim:#555a6e;--text-muted:#888da1;--accent:#2b6fd0;--accent-soft:rgba(43,111,208,.1);--accent-hover:#3b7fe0;--green:#1a9960;--green-soft:rgba(26,153,96,.1);--amber:#c8900a;--red:#d04040;--shadow:0 2px 8px rgba(0,0,0,.08)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+button{cursor:pointer;font-family:inherit}
+.mono{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace}
+.header{background:var(--bg-card);border-bottom:1px solid var(--border);padding:0 32px;height:56px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100}
+.header .logo{font-size:15px;font-weight:700;letter-spacing:-.5px;color:var(--accent)}.header .logo span{color:var(--text-dim);font-weight:400}
+.header .sep{width:1px;height:24px;background:var(--border)}
+.header .rotulo{font-size:11px;color:var(--text-muted);font-style:italic}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg-card);color:var(--text-dim);font-size:13px;font-weight:500;transition:all .15s}
+.btn:hover{background:var(--bg-hover);color:var(--text);border-color:var(--border-light)}
+.btn-accent{background:var(--accent);color:#fff;border-color:var(--accent)}.btn-accent:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.header-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.stats-bar{background:var(--bg-card);border-bottom:1px solid var(--border);padding:12px 32px;display:flex;gap:32px;flex-wrap:wrap}
+.stat{display:flex;flex-direction:column;gap:2px}.stat-label{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)}.stat-value{font-size:14px;font-weight:600}.stat-value.total{color:var(--green);font-size:18px}.stat-value.coef{color:var(--accent)}
+.upload-screen{display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 56px)}
+.upload-box{border:2px dashed var(--border);border-radius:var(--radius-lg);padding:64px 80px;text-align:center;transition:all .2s;cursor:pointer}
+.upload-box:hover,.upload-box.drag{border-color:var(--accent);background:var(--accent-soft)}
+.upload-box h2{font-size:20px;font-weight:600;margin-bottom:8px}.upload-box p{color:var(--text-dim);font-size:14px;margin-bottom:24px}
+.upload-box .nota{font-size:12px;color:var(--text-muted);margin-top:20px;margin-bottom:0}
+.main{display:flex;height:calc(100vh - 56px - 61px);overflow:hidden}
+.tree-panel{width:55%;min-width:480px;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.detail-panel{flex:1;overflow-y:auto;padding:20px 24px;min-width:380px}
+.tree-scroll{overflow:auto;flex:1}
+.ttable{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;min-width:640px}
+.ttable thead{position:sticky;top:0;z-index:5}
+.ttable thead th{background:var(--bg-card);color:var(--text-dim);text-align:left;padding:9px 8px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border);user-select:none}
+.ttable thead th.num{text-align:right}
+.ttable tbody td{padding:5px 8px;border-bottom:1px solid var(--border);vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ttable tbody tr{cursor:pointer;transition:background .08s}
+.ttable tbody tr:hover td{background:var(--bg-hover)}
+.ttable tbody tr.active td{background:var(--bg-active);box-shadow:inset 3px 0 0 var(--accent)}
+.ttable .num{text-align:right;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:11px;font-variant-numeric:tabular-nums}
+.ttable .cod{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:11px;color:var(--text-dim)}
+.col-cod{width:110px}.col-ud{width:44px}.col-cant{width:78px}.col-precio{width:88px}
+.ttable tr.row-cap td{background:var(--bg-card)}
+.ttable tr.row-cap td.col-resumen{font-weight:600}
+.ttable tr.row-cap:hover td{background:var(--bg-hover)}
+.ttable tr.row-cap.active td{background:var(--bg-active)}
+.tt-toggle{display:inline-flex;width:14px;height:14px;align-items:center;justify-content:center;color:var(--text-muted);font-size:10px;margin-right:4px;transition:transform .15s;user-select:none;vertical-align:middle}
+.tt-toggle.open{transform:rotate(90deg)}
+.tt-toggle.leaf{visibility:hidden}
+.tt-indent{display:inline-block;vertical-align:middle}
+.tt-badge{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.4px;padding:1px 5px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.badge-cap{background:var(--accent-soft);color:var(--accent)}
+.badge-part{background:var(--green-soft);color:var(--green)}
+.badge-mo{background:rgba(240,180,41,.18);color:var(--amber)}
+.badge-mq{background:var(--accent-soft);color:var(--accent)}
+.badge-mt{background:var(--green-soft);color:var(--green)}
+.badge-aux{background:rgba(180,120,220,.15);color:#b48adf}
+.badge-pct{background:rgba(239,107,107,.15);color:var(--red)}
+.detail-empty{display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:14px}
+.detail-header{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.detail-code{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:12px;color:var(--accent);margin-bottom:4px}
+.detail-name{font-size:20px;font-weight:700;margin-bottom:8px}
+.detail-meta{display:flex;gap:24px;flex-wrap:wrap}
+.detail-meta-item{display:flex;flex-direction:column;gap:2px}
+.detail-meta-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
+.detail-meta-value{font-size:15px;font-weight:600}.detail-meta-value.green{color:var(--green)}
+.detail-section{margin-top:20px}.detail-section h3{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);margin-bottom:10px}
+.detail-section h3 .hint{font-size:10px;color:var(--text-muted);font-weight:400;margin-left:6px;text-transform:none;letter-spacing:0}
+.detail-text{font-size:13px;line-height:1.6;color:var(--text-dim);background:var(--bg-card);padding:12px 16px;border-radius:var(--radius);border:1px solid var(--border);white-space:pre-wrap;word-break:break-word}
+.dtable{width:100%;border-collapse:collapse;font-size:12px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.dtable th{background:var(--bg-card);text-align:left;padding:8px 10px;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:var(--text-dim);border-bottom:1px solid var(--border)}
+.dtable th.num{text-align:right}
+.dtable td{padding:5px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.dtable tr:last-child td{border-bottom:none}.dtable tr:hover td{background:var(--bg-hover)}
+.dtable .num{text-align:right;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:11px;font-variant-numeric:tabular-nums}
+.dtable .cod{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:11px;color:var(--text-dim)}
+.desglose-precio{margin-top:10px;margin-left:auto;width:max-content;min-width:280px;font-size:13px}
+.dp-row{display:flex;justify-content:space-between;gap:24px;padding:3px 10px;border-bottom:1px dotted var(--border-light)}
+.dp-lbl{color:var(--text-dim)}
+.dp-val{font-variant-numeric:tabular-nums;color:var(--text);font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:12px}
+.dp-row.dp-total{border-bottom:none;border-top:2px solid var(--border);margin-top:2px;padding-top:6px}
+.dp-row.dp-total .dp-lbl{font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.5px;font-size:12px}
+.dp-row.dp-total .dp-val{font-weight:700;color:var(--green);font-size:15px}
+.dp-nota{font-size:11px;color:var(--text-muted);text-align:right;margin-top:4px;padding-right:10px;font-style:italic}
+.medicion-total{display:flex;justify-content:space-between;gap:24px;margin-top:8px;padding:6px 10px;border-top:2px solid var(--border);font-size:13px;font-weight:600;width:max-content;min-width:240px;margin-left:auto}
+.medicion-total .dp-val{color:var(--accent);font-weight:700}
+@media(max-width:768px){.main{flex-direction:column}.tree-panel{width:100%;min-width:0;height:50vh;border-right:none;border-bottom:1px solid var(--border)}.header{padding:0 16px}.detail-panel{padding:16px}}
+</style></head><body>
+<header class="header">
+  <div class="logo">BC3<span>visor</span></div><div class="sep"></div>
+  <span id="fileName" style="font-size:12px;color:var(--text-muted);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+  <span class="rotulo">solo lectura · números tal como los declara el archivo</span>
+  <div class="header-right">
+    <button class="btn" onclick="document.getElementById('fileInput').click()">Abrir BC3</button>
+    <input type="file" id="fileInput" accept=".bc3,.BC3" style="display:none" onchange="if(this.files[0])cargarArchivo(this.files[0])">
+    <button class="btn" id="themeBtn" onclick="toggleTheme()" title="Cambiar tema">🌙</button>
+  </div>
+</header>
+<div id="uploadScreen" class="upload-screen">
+  <div class="upload-box" onclick="document.getElementById('fileInput').click()"
+    ondragover="event.preventDefault();this.classList.add('drag')"
+    ondragleave="this.classList.remove('drag')"
+    ondrop="event.preventDefault();this.classList.remove('drag');if(event.dataTransfer.files[0])cargarArchivo(event.dataTransfer.files[0])">
+    <h2>Abre un archivo BC3</h2><p>Arrastra aquí o haz clic</p>
+    <button class="btn btn-accent">Seleccionar archivo</button>
+    <p class="nota">El visor no modifica el archivo: enseña los números que declara, sin recalcular nada.</p>
+  </div>
+</div>
+<div id="mainApp" style="display:none">
+  <div class="stats-bar" id="statsBar"></div>
+  <div class="main">
+    <div class="tree-panel"><div class="tree-scroll">
+      <table class="ttable"><thead><tr>
+        <th class="col-cod">Código</th>
+        <th class="col-resumen">Descripción</th>
+        <th class="col-ud">Ud</th>
+        <th class="num col-cant">Cantidad</th>
+        <th class="num col-precio">Precio</th>
+      </tr></thead><tbody id="treeBody"></tbody></table>
+    </div></div>
+    <div class="detail-panel" id="detailPanel"><div class="detail-empty">Selecciona un concepto</div></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ============================================================================
+   BC3visor — visor de solo lectura de presupuestos BC3 (FIEBDC-3).
+
+   REGLA DE ORO: enseñar los números que el archivo declara, sin recalcularlos.
+   Todos los valores numéricos se conservan como CADENA tal cual vienen en el
+   archivo; la única transformación es de puntuación ("1234.56" → "1.234,56").
+   Aquí no hay ni una suma ni una multiplicación sobre datos del presupuesto.
+   ==========================================================================*/
+
+// ---- Decodificación --------------------------------------------------------
+// cp850 (ASCII MS-DOS) no está en el Encoding Standard de los navegadores:
+// tabla manual para los bytes 0x80-0xFF. cp1252 sí lo está (windows-1252).
+const CP850_ALTOS =
+  'ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜø£Ø×ƒáíóúñÑªº¿®¬½¼¡«»' +
+  '░▒▓│┤ÁÂÀ©╣║╗╝¢¥┐└┴┬├─┼ãÃ╚╔╩╦╠═╬¤ðÐÊËÈıÍÎÏ┘┌█▄¦Ì▀' +
+  'ÓßÔÒõÕµþÞÚÛÙýÝ¯´­±‗¾¶§÷¸°¨·¹³²■ ';
+
+function decodificar(buf){
+  const bytes = new Uint8Array(buf);
+  // Detección como el lector de BC3Manager: mirar la cabecera (registro ~V)
+  let cabecera = '';
+  for(let i=0;i<Math.min(400,bytes.length);i++) cabecera += String.fromCharCode(bytes[i]);
+  cabecera = cabecera.toUpperCase();
+  const esDOS = cabecera.includes('ASCII') || cabecera.includes('850') || cabecera.includes('DOS');
+  if(!esDOS) return new TextDecoder('windows-1252').decode(bytes);
+  let out='';
+  for(let i=0;i<bytes.length;i++){
+    const b=bytes[i];
+    out += b<0x80 ? String.fromCharCode(b) : CP850_ALTOS[b-0x80];
+  }
+  return out;
+}
+
+// ---- Separación en registros lógicos --------------------------------------
+// Un registro empieza por '~' a principio de línea física; las líneas que no
+// empiezan por '~' son continuación. En los ~T la continuación conserva el
+// salto de línea (forma parte del texto); en el resto se une sin más.
+function separarRegistros(texto){
+  const registros=[]; let actual=null;
+  for(const linea of texto.split(/\r?\n/)){
+    if(linea.startsWith('~')){
+      if(actual) registros.push(actual.join(''));
+      actual=[linea];
+    }else if(actual){
+      actual.push(actual[0].startsWith('~T')?'\n'+linea:linea);
+    }
+  }
+  if(actual) registros.push(actual.join(''));
+  return registros;
+}
+
+// ---- Modelo ----------------------------------------------------------------
+// Todo valor numérico se guarda como cadena cruda del archivo (sufijo Raw).
+function nuevoConcepto(codigo){
+  return {codigo, unidad:'', resumen:'', precioRaw:'', numPrecios:0, fecha:'',
+    tipoF:'', texto:'', hijos:[],          // hijos: [{codigo, factorRaw, rendRaw}]
+    mediciones:new Map(),                  // codPadre → {totalRaw, lineas:[...]}
+    tipo:''};                              // 'capitulo' | 'partida' | 'unitario'
+}
+
+const P = {   // estado del presupuesto cargado
+  conceptos:new Map(), raiz:'', version:'', programa:'', rotulos:[],
+  tieneK:false, ciRaw:'', ggRaw:'', biRaw:'', bajaRaw:'', ivaRaw:'', moneda:''
+};
+
+function get(cod){ return P.conceptos.get(cod); }
+function getOrCreate(cod){
+  let c=get(cod);
+  if(!c){ c=nuevoConcepto(cod); P.conceptos.set(cod,c); }
+  return c;
+}
+
+// ---- Parser ----------------------------------------------------------------
+function parsearBC3(texto){
+  P.conceptos=new Map(); P.raiz=''; P.version=''; P.programa=''; P.rotulos=[];
+  P.tieneK=false; P.ciRaw=''; P.ggRaw=''; P.biRaw=''; P.bajaRaw=''; P.ivaRaw=''; P.moneda='';
+
+  for(const reg of separarRegistros(texto)){
+    if(reg.length<2) continue;
+    const campos=reg.slice(2).split('|');
+    switch(reg[1].toUpperCase()){
+      case 'V': regV(campos); break;
+      case 'K': regK(campos); break;
+      case 'C': regC(campos); break;
+      case 'D': regD(campos); break;
+      case 'T': regT(campos); break;
+      case 'M': regM(campos); break;
+    }
+  }
+  resolverAliasHash();
+  clasificarTipos();
+  detectarRaiz();
+}
+
+const campo=(c,i)=>(i<c.length?c[i]:'');
+
+function regV(c){
+  // ~V | propiedad | VERSION\FECHA | programa | cabecera\ROTULO1\ROTULO2... |
+  P.version = campo(c,2).split('\\')[0].trim();
+  P.programa = campo(c,3).trim();
+  // Campo 4: cabecera + rótulos de los precios alternativos del ~C.
+  // Solo interesa saber cuántos hay para avisar de que se ignoran.
+  const cab = campo(c,4).split('\\');
+  P.rotulos = cab.slice(1).map(s=>s.trim()).filter(Boolean);
+}
+
+function regK(c){
+  // ~K | DECIMALES\...\MONEDA | CI\GG\BI\BAJA\IVA | campo3 completo |
+  P.tieneK=true;
+  const coefs=campo(c,2).split('\\');
+  const v=i=>(i<coefs.length?coefs[i].trim():'');
+  P.ciRaw=v(0); P.ggRaw=v(1); P.biRaw=v(2); P.bajaRaw=v(3); P.ivaRaw=v(4);
+  for(const tok of campo(c,1).split('\\')){
+    const t=tok.trim();
+    if(t && !/^\d+$/.test(t)){ P.moneda=t; break; }
+  }
+}
+
+function regC(c){
+  // ~C | CODIGO | UNIDAD | RESUMEN | PRECIO\PRECIO2... | FECHA | TIPO |
+  const codigo=campo(c,1).split('\\')[0].trim();
+  if(!codigo) return;
+  const con=getOrCreate(codigo);
+  const unidad=campo(c,2).trim(), resumen=campo(c,3).trim();
+  con.unidad = unidad || con.unidad;
+  con.resumen = resumen || con.resumen;
+  const precios=campo(c,4).split('\\').map(s=>s.trim()).filter(s=>s!=='');
+  // Solo la primera columna de precios (la del presupuesto); el resto son
+  // bancos de referencia del autor y se ignoran a propósito.
+  if(precios.length){ con.precioRaw=precios[0]; con.numPrecios=precios.length; }
+  const fecha=campo(c,5).trim(); if(fecha) con.fecha=fecha;
+  const tipoF=campo(c,6).trim(); if(tipoF) con.tipoF=tipoF;
+}
+
+function regD(c){
+  // ~D | PADRE | HIJO\FACTOR\RENDIMIENTO\HIJO2\... |
+  const codPadre=campo(c,1).trim();
+  if(!codPadre) return;
+  const padre=getOrCreate(codPadre);
+  const partes=campo(c,2).split('\\');
+  for(let i=0;i<partes.length;i+=3){
+    let cod=(partes[i]||'').trim();
+    if(!cod) continue;
+    // Presto 8.8 omite el # final en las referencias del ~D
+    if(!get(cod) && get(cod+'#')) cod=cod+'#';
+    padre.hijos.push({codigo:cod,
+      factorRaw:(partes[i+1]||'').trim(),
+      rendRaw:(partes[i+2]||'').trim()});
+    getOrCreate(cod);
+  }
+}
+
+function regT(c){
+  const codigo=campo(c,1).trim();
+  if(!codigo) return;
+  getOrCreate(codigo).texto=campo(c,2).replace(/^\n+/,'').trimEnd();
+}
+
+function regM(c){
+  // ~M | PADRE\HIJO | POSICION | TOTAL | TIPO\COMENTARIO\N\LONG\ANCHO\ALTO\... |
+  const rel=campo(c,1);
+  let codPadre='', codHijo='';
+  if(rel.includes('\\')){
+    const t=rel.split('\\');
+    codPadre=t[0].trim(); codHijo=(t[1]||'').trim();
+  }else{
+    codHijo=rel.trim();
+  }
+  if(!codHijo) return;
+  const con=getOrCreate(codHijo);
+  const med={totalRaw:campo(c,3).trim(), lineas:[]};
+  const partes=campo(c,4).split('\\');
+  for(let i=0;i<partes.length;i+=6){
+    const g=j=>(i+j<partes.length?partes[i+j].trim():'');
+    const [tipoRaw,comentario,nRaw,lRaw,aRaw,hRaw]=[g(0),g(1),g(2),g(3),g(4),g(5)];
+    if(comentario || [nRaw,lRaw,aRaw,hRaw].some(x=>x!=='' && parseFloat(x.replace(',','.'))!==0))
+      med.lineas.push({tipoRaw,comentario,nRaw,lRaw,aRaw,hRaw});
+  }
+  con.mediciones.set(codPadre||'__sin_padre__', med);
+}
+
+// ---- Normalizaciones post-lectura (mismas rarezas que trata BC3Manager) ----
+function resolverAliasHash(){
+  // Presto emite referencias sin el # final aunque el ~C lo lleve.
+  const aliased=new Set();
+  for(const con of P.conceptos.values()){
+    for(const h of con.hijos){
+      if(!h.codigo.endsWith('#') && get(h.codigo+'#')){
+        const sin=get(h.codigo), conHash=get(h.codigo+'#');
+        if(sin && sin.resumen && !conHash.resumen) conHash.resumen=sin.resumen;
+        aliased.add(h.codigo);
+        h.codigo=h.codigo+'#';
+      }
+    }
+  }
+  for(const cod of aliased){
+    const c=get(cod);
+    if(!c) continue;
+    const vacio=!c.hijos.length && !c.mediciones.size && !c.precioRaw && !c.resumen;
+    let referenciado=false;
+    for(const otro of P.conceptos.values())
+      if(otro.hijos.some(h=>h.codigo===cod)){ referenciado=true; break; }
+    if(vacio && !referenciado) P.conceptos.delete(cod);
+  }
+  // Presto 20: las claves de ~M también vienen sin # ('001' por '001#')
+  for(const con of P.conceptos.values()){
+    for(const padre of [...con.mediciones.keys()]){
+      if(padre.endsWith('#') || padre==='__sin_padre__') continue;
+      if(!get(padre) && get(padre+'#')){
+        con.mediciones.set(padre+'#', con.mediciones.get(padre));
+        con.mediciones.delete(padre);
+      }
+    }
+  }
+}
+
+function clasificarTipos(){
+  // Mismas reglas que BC3Manager (clasificar_tipos): el tipo FIEBDC declarado
+  // manda; si falta, heurísticas por estructura.
+  for(const c of P.conceptos.values()){
+    const esRaiz=c.codigo.endsWith('##');
+    if('1234'.includes(c.tipoF) && c.tipoF){ c.tipo='unitario'; continue; }
+    if(c.tipoF==='5'){ c.tipo='capitulo'; continue; }
+    if(c.tipoF==='6'){ c.tipo='partida'; continue; }
+    const agrega=c.hijos.some(h=>{
+      const hc=get(h.codigo);
+      return hc && (hc.mediciones.has(c.codigo) || hc.codigo.endsWith('##'));
+    });
+    if(esRaiz || (c.codigo.endsWith('#') && !c.unidad)) c.tipo='capitulo';
+    else if(c.hijos.length && agrega) c.tipo='capitulo';
+    else if(c.mediciones.size) c.tipo='partida';
+    else if(c.hijos.length) c.tipo=c.unidad?'partida':'capitulo';
+    else c.tipo='unitario';
+  }
+}
+
+function detectarRaiz(){
+  for(const cod of P.conceptos.keys())
+    if(cod.endsWith('##')){ P.raiz=cod; return; }
+  // Sin '##' (Presto 8.8): candidatos = conceptos con hijos que no son hijos de nadie
+  const todosHijos=new Set();
+  for(const c of P.conceptos.values())
+    for(const h of c.hijos){
+      todosHijos.add(h.codigo);
+      todosHijos.add(h.codigo.replace(/#+$/,''));
+    }
+  const candidatos=[...P.conceptos.values()].filter(c=>
+    c.hijos.length && !todosHijos.has(c.codigo) && !todosHijos.has(c.codigo.replace(/#+$/,'')));
+  if(!candidatos.length) return;
+  if(candidatos.length===1){ P.raiz=candidatos[0].codigo; return; }
+  const raiz=nuevoConcepto('OBRA##');
+  raiz.resumen='Presupuesto'; raiz.tipo='capitulo';
+  for(const c of candidatos) raiz.hijos.push({codigo:c.codigo,factorRaw:'',rendRaw:''});
+  P.conceptos.set('OBRA##',raiz);
+  P.raiz='OBRA##';
+}
+
+// ---- Formato de números (puntuación española, SIN tocar el valor) ---------
+// "1234.56" → "1.234,56". Conserva exactamente los dígitos del archivo:
+// ni redondea, ni rellena decimales, ni convierte a float.
+function fmtNum(raw){
+  if(raw==null) return '';
+  const s=String(raw).trim();
+  if(s==='') return '';
+  const m=s.match(/^([+-]?)(\d+)(?:[.,](\d+))?$/);
+  if(!m) return s;   // no parece un número: se enseña tal cual
+  const ent=m[2].replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+  return m[1]+ent+(m[3]!==undefined?','+m[3]:'');
+}
+function esc(s){
+  if(s==null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+// Celda numérica con el valor crudo del archivo en el tooltip
+function celdaNum(raw){
+  if(!raw) return '';
+  return `<span title="En el archivo: ${esc(raw)}">${esc(fmtNum(raw))}</span>`;
+}
+
+// ---- Carga -----------------------------------------------------------------
+function cargarArchivo(file){
+  const fr=new FileReader();
+  fr.onload=()=>{
+    try{
+      parsearBC3(decodificar(fr.result));
+    }catch(err){
+      alert('No se pudo leer el archivo: '+err.message);
+      return;
+    }
+    document.getElementById('fileName').textContent=file.name;
+    mostrarApp();
+  };
+  fr.readAsArrayBuffer(file);
+}
+// Carga por URL (?file=...) — útil sirviendo la carpeta por http para probar
+async function cargarURL(url){
+  const r=await fetch(url);
+  parsearBC3(decodificar(await r.arrayBuffer()));
+  document.getElementById('fileName').textContent=url.split('/').pop();
+  mostrarApp();
+}
+
+let seleccion=null;        // {codigo, padre}
+const abiertos=new Set();  // capítulos desplegados
+
+function mostrarApp(){
+  seleccion=null; abiertos.clear();
+  // Primer nivel desplegado de inicio
+  const raiz=get(P.raiz);
+  if(raiz) for(const h of raiz.hijos){
+    const hc=get(h.codigo);
+    if(hc && hc.tipo==='capitulo') abiertos.add(claveNodo(h.codigo,P.raiz));
+  }
+  document.getElementById('uploadScreen').style.display='none';
+  document.getElementById('mainApp').style.display='';
+  renderStats(); renderTree();
+  document.getElementById('detailPanel').innerHTML='<div class="detail-empty">Selecciona un concepto</div>';
+}
+
+// ---- Render: barra de datos ------------------------------------------------
+function renderStats(){
+  const raiz=get(P.raiz);
+  let nCap=0,nPart=0;
+  for(const c of P.conceptos.values()){
+    if(c.tipo==='capitulo')nCap++; else if(c.tipo==='partida')nPart++;
+  }
+  const st=(lbl,val,cls='')=>val?`<div class="stat"><span class="stat-label">${lbl}</span><span class="stat-value ${cls}">${val}</span></div>`:'';
+  let html='';
+  html+=st('Obra',esc(raiz&&raiz.resumen||'—'));
+  html+=st('Versión',esc(P.version));
+  html+=st('Programa',esc(P.programa));
+  html+=st('Capítulos',String(nCap));
+  html+=st('Partidas',String(nPart));
+  if(raiz&&raiz.precioRaw)
+    html+=`<div class="stat" title="Precio del concepto raíz tal como lo declara el ~C (en el archivo: ${esc(raiz.precioRaw)})"><span class="stat-label">Precio obra (~C)</span><span class="stat-value total">${esc(fmtNum(raiz.precioRaw))} €</span></div>`;
+  if(P.tieneK){
+    const co=(lbl,raw)=>raw!==''?`<div class="stat" title="Declarado en el registro ~K — el visor no lo aplica"><span class="stat-label">${lbl}</span><span class="stat-value coef">${esc(fmtNum(raw))} %</span></div>`:'';
+    html+=co('C. indirectos',P.ciRaw)+co('G. generales',P.ggRaw)+co('B. industrial',P.biRaw)+co('Baja',P.bajaRaw)+co('IVA',P.ivaRaw);
+  }
+  if(P.rotulos.length>1)
+    html+=`<div class="stat" title="${esc(P.rotulos.join(' · '))}"><span class="stat-label">Precios alternativos</span><span class="stat-value" style="color:var(--text-muted)">${P.rotulos.length-1} ignorados</span></div>`;
+  document.getElementById('statsBar').innerHTML=html;
+}
+
+// ---- Render: árbol ---------------------------------------------------------
+const claveNodo=(cod,padre)=>padre+'>'+cod;
+
+// Cantidad que declara el archivo para (cod, padre): el total del ~M si existe;
+// si no, el rendimiento del ~D en ese padre. Ambos son datos declarados.
+function cantidadDeclarada(cod,padre){
+  const c=get(cod);
+  if(!c) return {raw:'',origen:''};
+  const med=c.mediciones.get(padre)||c.mediciones.get('__sin_padre__');
+  if(med && med.totalRaw!=='') return {raw:med.totalRaw,origen:'~M'};
+  const p=get(padre);
+  if(p){
+    const h=p.hijos.find(h=>h.codigo===cod);
+    if(h && h.rendRaw!=='') return {raw:h.rendRaw,origen:'~D'};
+  }
+  return {raw:'',origen:''};
+}
+
+function renderTree(){
+  const tb=document.getElementById('treeBody');
+  tb.innerHTML='';
+  const raiz=get(P.raiz);
+  if(!raiz){ tb.innerHTML='<tr><td colspan="5" style="color:var(--text-muted);padding:16px">No se encontró la estructura del presupuesto</td></tr>'; return; }
+  for(const h of raiz.hijos) filaNodo(tb,h.codigo,P.raiz,0);
+}
+
+function filaNodo(tbody,cod,padre,nivel){
+  const c=get(cod);
+  if(!c || (c.tipo!=='capitulo' && c.tipo!=='partida')) return;
+  const esCap=c.tipo==='capitulo';
+  const clave=claveNodo(cod,padre);
+  const hijosVisibles=esCap?c.hijos.filter(h=>{const hc=get(h.codigo);return hc&&(hc.tipo==='capitulo'||hc.tipo==='partida');}):[];
+  const abierto=abiertos.has(clave);
+
+  const tr=document.createElement('tr');
+  tr.className='row-'+(esCap?'cap':'part');
+  if(seleccion && seleccion.codigo===cod && seleccion.padre===padre) tr.classList.add('active');
+  const cant=cantidadDeclarada(cod,padre);
+  tr.innerHTML=
+    `<td class="col-cod cod">${esc(cod)}</td>`+
+    `<td class="col-resumen"><span class="tt-indent" style="width:${nivel*16}px"></span>`+
+      `<span class="tt-toggle ${hijosVisibles.length?'':'leaf'}${abierto?' open':''}">▶</span>`+
+      `<span class="tt-badge ${esCap?'badge-cap':'badge-part'}">${esCap?'Cap':'Part'}</span>`+
+      `${esc(c.resumen)}</td>`+
+    `<td class="col-ud">${esc(c.unidad)}</td>`+
+    `<td class="num col-cant">${esCap?'':celdaNum(cant.raw)}</td>`+
+    `<td class="num col-precio">${celdaNum(c.precioRaw)}</td>`;
+  tr.onclick=()=>{
+    if(esCap && hijosVisibles.length){
+      abiertos.has(clave)?abiertos.delete(clave):abiertos.add(clave);
+    }
+    seleccion={codigo:cod,padre};
+    renderTree(); renderDetail(cod,padre);
+  };
+  tbody.appendChild(tr);
+  if(esCap && abierto)
+    for(const h of hijosVisibles) filaNodo(tbody,h.codigo,cod,nivel+1);
+}
+
+// ---- Render: panel de detalle ---------------------------------------------
+const BADGE_TIPO={'1':['MO','badge-mo'],'2':['MQ','badge-mq'],'3':['MT','badge-mt'],'4':['AUX','badge-aux'],'5':['Cap','badge-cap'],'6':['PA','badge-part']};
+
+function renderDetail(cod,padre){
+  const c=get(cod);
+  const panel=document.getElementById('detailPanel');
+  if(!c){ panel.innerHTML='<div class="detail-empty">Selecciona un concepto</div>'; return; }
+  const cant=cantidadDeclarada(cod,padre);
+
+  let h=`<div class="detail-header">
+    <div class="detail-code">${esc(cod)}</div>
+    <div class="detail-name">${esc(c.resumen)||'<span style="color:var(--text-muted)">Sin resumen</span>'}</div>
+    <div class="detail-meta">
+      <div class="detail-meta-item"><span class="detail-meta-label">Unidad</span><span class="detail-meta-value">${esc(c.unidad)||'—'}</span></div>`;
+  if(c.tipo==='partida')
+    h+=`<div class="detail-meta-item"><span class="detail-meta-label">Cantidad ${cant.origen?'('+cant.origen+')':''}</span><span class="detail-meta-value">${cant.raw?celdaNum(cant.raw):'—'}</span></div>`;
+  h+=`<div class="detail-meta-item"><span class="detail-meta-label">Precio (~C)</span><span class="detail-meta-value green">${c.precioRaw?celdaNum(c.precioRaw)+' €':'—'}</span></div>`;
+  if(c.fecha)
+    h+=`<div class="detail-meta-item"><span class="detail-meta-label">Fecha</span><span class="detail-meta-value">${esc(c.fecha)}</span></div>`;
+  h+=`</div></div>`;
+
+  // Descripción larga (~T)
+  if(c.texto)
+    h+=`<div class="detail-section"><h3>Descripción <span class="hint">registro ~T</span></h3>
+      <div class="detail-text">${esc(c.texto)}</div></div>`;
+
+  // Desglose (~D) — solo para partidas y unitarios con descomposición
+  if(c.tipo!=='capitulo' && c.hijos.length){
+    const hayFactor=c.hijos.some(x=>x.factorRaw!=='' && x.factorRaw!=='1');
+    h+=`<div class="detail-section"><h3>Descomposición <span class="hint">rendimientos del ~D, precios del ~C</span></h3>
+      <table class="dtable"><thead><tr>
+        <th>Código</th><th></th><th>Descripción</th><th>Ud</th>`+
+        (hayFactor?'<th class="num">Factor</th>':'')+
+        `<th class="num">Rendimiento</th><th class="num">Precio</th>
+      </tr></thead><tbody>`;
+    for(const hij of c.hijos){
+      const rc=get(hij.codigo);
+      const esPct=hij.codigo.startsWith('%');
+      const bd=esPct?['%','badge-pct']:(BADGE_TIPO[rc&&rc.tipoF]||['','']);
+      h+=`<tr>
+        <td class="cod">${esc(hij.codigo)}</td>
+        <td>${bd[0]?`<span class="tt-badge ${bd[1]}">${bd[0]}</span>`:''}</td>
+        <td>${esc(rc&&rc.resumen||'')}</td>
+        <td>${esc(rc&&rc.unidad||'')}</td>`+
+        (hayFactor?`<td class="num">${celdaNum(hij.factorRaw)}</td>`:'')+
+        `<td class="num">${celdaNum(hij.rendRaw)}</td>
+        <td class="num">${rc&&rc.precioRaw?celdaNum(rc.precioRaw)+(esPct?' %':''):''}</td>
+      </tr>`;
+    }
+    h+=`</tbody></table>`;
+    // Aplicación del coste directo, como en BC3Manager pero sin calcular:
+    // el precio del ~C es el dato; el CI del ~K se enseña, no se aplica.
+    if(c.tipo==='partida'){
+      h+=`<div class="desglose-precio">`;
+      if(P.tieneK && P.ciRaw!=='' && P.ciRaw!=='0')
+        h+=`<div class="dp-row"><span class="dp-lbl">Costes indirectos declarados (~K)</span><span class="dp-val">${esc(fmtNum(P.ciRaw))} %</span></div>`;
+      h+=`<div class="dp-row dp-total"><span class="dp-lbl">Precio partida (~C)</span><span class="dp-val" title="En el archivo: ${esc(c.precioRaw)}">${c.precioRaw?esc(fmtNum(c.precioRaw))+' €':'—'}</span></div>
+      </div>
+      <div class="dp-nota">Números tal como los declara el archivo — el visor no suma el desglose ni aplica el CI.</div>`;
+    }
+  }
+
+  // Mediciones (~M)
+  const med=c.mediciones.get(padre)||c.mediciones.get('__sin_padre__');
+  if(med){
+    h+=`<div class="detail-section"><h3>Mediciones <span class="hint">registro ~M en ${esc(padre||'(sin padre)')}</span></h3>`;
+    if(med.lineas.length){
+      h+=`<table class="dtable"><thead><tr>
+        <th style="width:36px"></th><th>Comentario</th>
+        <th class="num">N</th><th class="num">Longitud</th><th class="num">Anchura</th><th class="num">Altura</th>
+      </tr></thead><tbody>`;
+      for(const ln of med.lineas){
+        const t=ln.tipoRaw;
+        const marca=t==='1'?'Σp':t==='2'?'Σa':t==='3'?'fx':'';
+        h+=`<tr>
+          <td>${marca?`<span class="tt-badge badge-aux" title="Línea de tipo ${esc(t)}">${marca}</span>`:''}</td>
+          <td>${esc(ln.comentario)}</td>
+          <td class="num">${celdaNum(ln.nRaw)}</td>
+          <td class="num">${celdaNum(ln.lRaw)}</td>
+          <td class="num">${celdaNum(ln.aRaw)}</td>
+          <td class="num">${celdaNum(ln.hRaw)}</td>
+        </tr>`;
+      }
+      h+=`</tbody></table>`;
+    }else{
+      h+=`<div class="detail-text" style="font-style:italic">Sin líneas de detalle (partida alzada: vale el total declarado).</div>`;
+    }
+    h+=`<div class="medicion-total"><span class="dp-lbl">Total declarado (~M)</span>
+      <span class="dp-val" title="En el archivo: ${esc(med.totalRaw)}">${med.totalRaw!==''?esc(fmtNum(med.totalRaw)):'—'} ${esc(c.unidad)}</span></div>`;
+    if(med.lineas.length)
+      h+=`<div class="dp-nota">El total es el declarado en el archivo, no la suma de las líneas.</div>`;
+    h+=`</div>`;
+  }
+
+  panel.innerHTML=h;
+}
+
+// ---- Tema ------------------------------------------------------------------
+function toggleTheme(){
+  const html=document.documentElement;
+  const nuevo=html.dataset.theme==='dark'?'light':'dark';
+  html.dataset.theme=nuevo;
+  document.getElementById('themeBtn').textContent=nuevo==='dark'?'🌙':'☀️';
+  try{ localStorage.setItem('bc3visor-theme',nuevo); }catch(e){}
+}
+(function(){
+  let t='dark';
+  try{ t=localStorage.getItem('bc3visor-theme')||'dark'; }catch(e){}
+  document.documentElement.dataset.theme=t;
+  document.getElementById('themeBtn').textContent=t==='dark'?'🌙':'☀️';
+  const q=new URLSearchParams(location.search).get('file');
+  if(q) cargarURL(q).catch(err=>alert('No se pudo cargar '+q+': '+err.message));
+})();
+</script>
+</body></html>
