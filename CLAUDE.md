@@ -85,6 +85,30 @@ Referencia del formato y del cálculo: `../BC3manager/docs/formato-bc3.md`
 (sección «La cadena de redondeo»), `../BC3manager/bc3manager/core/model.py`
 (`recalcular`, `precio_con_ci`, `parcial_linea`) y `io/lector.py::_reg_K`.
 
+### El CI se aplica siempre: hay archivos que no se pueden reconstruir
+
+Presto tiene una opción, la variable `CalcIndAlz`, que no aplica CI a las
+partidas sin descomponer. El propio Presto la documenta como «una anomalía» que
+provoca incompatibilidades entre presupuestos; además, la normativa de
+contratación pública exige el mismo porcentaje para todas las unidades de obra
+sin exclusión.
+[Consulta 03.01.15 de Presto](https://consultas.presto.es/PrestoWebWCF.svc/FunctionGo?cod=CONSULTAS/03/03.01/03.01.15&path=Consultas.cfg)
+
+Al exportar el `.pzh` a `.bc3` **esa variable no queda marcada en ningún sitio**,
+así que el archivo no se puede reconstruir: al abrirlo se le aplica el CI a todas
+las partidas y aparece un descuadre. Comprobado exportando con la opción puesta y
+volviendo a abrir en Presto — `EJEMPLOS/…Costitx - SOLID.bc3` y su `v2` tienen
+los mismos 120 registros y solo difieren en tres números (los totales de dos
+capítulos y el de la raíz); el presupuesto subió 571,08 € en el viaje de ida y
+vuelta.
+
+Conclusión operativa: **el CI se aplica a todas las partidas, tengan o no
+descomposición** — es lo que reproduce los 98 capítulos de los cinco ejemplos, y
+lo contrario no es implementable porque el archivo no dice cuándo tocaría. Y de
+forma general conviene evitar el uso de esa opción de Presto al redactar, porque
+produce BC3 irreproducibles. Si un capítulo descuadra por esta causa, el visor lo
+marca en rojo y hace bien.
+
 ### Verificar el cálculo tras tocarlo
 
 Contrastar contra BC3manager, que está verificado contra informes reales de
@@ -134,13 +158,15 @@ Y abrir, por ejemplo,
 **Siempre con `--bind 127.0.0.1`**: sin él, `http.server` sirve la carpeta a toda
 la red local, y aquí hay presupuestos reales de clientes.
 
-Los cinco ejemplos cubren a propósito casos distintos:
+Los ejemplos cubren a propósito casos distintos. Todos traen raíz `##` y todos
+declaran CI en el `~K` (6%, salvo Bulevar Peguera que lleva 5%):
 
 | Archivo | Qué caso cubre |
 |---|---|
-| Variant Alqueria Blanca | Presto 20.01 / FIEBDC-2016, `~K` completo |
-| Nova EBAR Peguera · Bulevar Peguera | Presto 21, `~K` con decimales ampliados |
-| Deposito Porreres · Cami de Santa Rita | Presto 8.8 / FIEBDC-2002: **sin raíz `##`**, sin CI, capítulos con precio precalculado |
+| Variant Alqueria Blanca | Presto 20.01 / FIEBDC-2016, `~K` con campo 3 completo (precios de partida a 4 decimales) |
+| Nova EBAR Peguera · Bulevar Peguera | Presto 21, el volumen grande |
+| Deposito Porreres · Cami de Santa Rita | Presto 8.8 / FIEBDC-2002: `~K` sin campo 3, alias `#` omitido en `~D` y `~M`, capítulos con precio precalculado |
+| Cami de Santa Rita **v2** | El mismo presupuesto tras ir y volver de Presto. **No es un duplicado: es la prueba** de que `CalcIndAlz` no viaja en el archivo (ver arriba). No borrar |
 
 Verificar siempre contra el archivo crudo con grep. Un valor declarado tiene que
 verse letra a letra como está en el `.bc3`. Un valor calculado se comprueba contra
@@ -158,3 +184,63 @@ cuenta al calcular: un concepto con `~M` propia es partida antes que nada; una
 `~M` sin líneas de detalle es partida alzada y vale su total declarado; y en una
 línea de medición los factores a 0 cuentan como 1 (una línea «5 / 0 / 0 / 0» mide
 5, no 0).
+
+## Pendiente
+
+**1. Las partidas sin `~D` ni `~M` no se pintan.** `clasificarTipos()` las manda
+a `unitario`, y `filaNodo()` solo pinta capítulos y partidas, así que
+desaparecen del árbol. Caso: `999.0016C` («Partida alçada a justificar gestió de
+residus d'excavació») en `EJEMPLOS/…Costitx…`, que cuelga del `~D` del `04#` y
+Presto sí enseña. No afecta a ningún total —rendimiento 0 y sin medición, importe
+0— pero falta una línea del presupuesto. La regla que nos falta es la que usa
+Presto: **lo que cuelga del `~D` de un capítulo es una partida**, tenga o no
+descomposición y medición.
+
+**2. La medición: la fila no cuadra consigo misma.** La columna «Cantidad»
+enseña el total declarado en el `~M`, pero el importe se calcula con otro número
+—el que sale de sumar las líneas de medición— y en ningún sitio se dice. Caso:
+`211.0020`, el betún del MBC, en `EJEMPLOS/…Costitx…`.
+
+```
+~M|02#\211.0020|2\3\|18.23|\MBC tipus AC16 surf\0.045\405.12\\\|
+```
+
+El `~M` declara `18,23` y nosotros calculamos `20,26`. La fila muestra cantidad
+18,23 y precio con CI 1.020,78, pero el importe no es 18.608,82 sino 20.681,00 —
+2.072,18 € de más en ese capítulo, y sin ninguna pista de por qué.
+
+**Qué hay que hacer.** Calcular la medición está bien y se mantiene, pero tiene
+que verse: una columna de **medición calculada** junto a la declarada, en verde
+si coinciden y en rojo si no, igual que ya se hace con el precio. Un descuadre de
+medición es información sobre el archivo; hay que enseñarlo, no esconderlo dentro
+del importe.
+
+**Decisión técnica pendiente:** de dónde sale la diferencia. En `parcialLinea()`
+redondeamos cada factor antes de multiplicar, así que `0,045` se convierte en
+`0,05` y `0,05 × 405,12 = 20,26`. Ese redondeo usa `K.decNum = 2`, **que este
+archivo no declara por ninguna parte**: su `~K` no trae campo 3, y el campo 1 no
+incluye DN ni DD. Es un valor que nos hemos inventado, en contra de la regla de
+no hardcodear nada. Sin redondear el factor sale `18,2304 → 18,23`, exactamente
+lo declarado. Hay que decidir qué hacer cuando el `~K` no declara DN/DD.
+
+**Y antes de tocarlo, documentarlo.** Falta explicar en este archivo, en lenguaje
+llano y sin jerga de Presto, cómo se calcula el precio de una partida y cómo se
+calcula una medición. Si vamos a enseñar dos cifras y marcar una en rojo, hay que
+poder explicar de dónde sale cada una.
+
+**3. `542.0001` sale un céntimo por debajo de lo que declara el archivo**
+(`EJEMPLOS/…Costitx…`). Su `~C` dice `90,69` y calculamos `90,68`. No es una
+diferencia de criterio con Presto: es un error nuestro. En `calcularPrecios()` el
+acumulador de la descomposición (`total += sub`) **suma en float**, y
+`2 + 1,7 + 1,15 + 70 + 6,16 + 1,98 + 0,88 + 0,88` da `84,74999999999999` en vez
+de `84,75`. Sobre ese acumulado la línea de porcentaje `%0700` obtiene
+`0,8474999999999999` en lugar de `0,8475`, el redondeo mitad-arriba a DRC se va
+para abajo (`0,847` en vez de `0,848`) y el subtotal sale `5,93` en vez de
+`5,94`. Sumando en decimal exacto da `90,69`, que es lo que declara el archivo.
+
+Hacia dónde va la solución: el módulo decimal (`decFrom/decMul/decRound`) ya está
+montado y solo le falta la suma; hay que acumular con ella en vez de con `+`. El
+mismo patrón aparece en `totalMedicion()`, `importeCalculado()` y el PEM de
+`renderStats()`, así que conviene revisarlos a la vez. BC3manager acumula en
+float igual que nosotros, así que al corregirlo dejaremos de coincidir con él en
+estos casos, y la razón será nuestra.
