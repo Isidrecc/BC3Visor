@@ -228,19 +228,40 @@ llano y sin jerga de Presto, cómo se calcula el precio de una partida y cómo s
 calcula una medición. Si vamos a enseñar dos cifras y marcar una en rojo, hay que
 poder explicar de dónde sale cada una.
 
-**3. `542.0001` sale un céntimo por debajo de lo que declara el archivo**
-(`EJEMPLOS/…Costitx…`). Su `~C` dice `90,69` y calculamos `90,68`. No es una
-diferencia de criterio con Presto: es un error nuestro. En `calcularPrecios()` el
-acumulador de la descomposición (`total += sub`) **suma en float**, y
-`2 + 1,7 + 1,15 + 70 + 6,16 + 1,98 + 0,88 + 0,88` da `84,74999999999999` en vez
-de `84,75`. Sobre ese acumulado la línea de porcentaje `%0700` obtiene
-`0,8474999999999999` en lugar de `0,8475`, el redondeo mitad-arriba a DRC se va
-para abajo (`0,847` en vez de `0,848`) y el subtotal sale `5,93` en vez de
-`5,94`. Sumando en decimal exacto da `90,69`, que es lo que declara el archivo.
+**3. ~~El céntimo de `542.0001`~~ — HECHO.** El acumulador de
+`calcularPrecios()` sumaba en float y rompía los empates del redondeo. Resuelto
+con `decAdd`, más `decDiv` para la división de las líneas de porcentaje, más la
+máscara del prefijo del código (`A%AUX00250` va solo sobre las líneas que
+empiezan por `A`, no sobre todo el acumulado) y el redondeo de la cantidad antes
+de multiplicarla por el precio. Con eso, **los precios de partida de los cinco
+ejemplos cuadran al 100%** con lo que declara su `~C`: Nova EBAR pasó de 99/130 a
+130/130 y Bulevar de 243/249 a 249/249.
 
-Hacia dónde va la solución: el módulo decimal (`decFrom/decMul/decRound`) ya está
-montado y solo le falta la suma; hay que acumular con ella en vez de con `+`. El
-mismo patrón aparece en `totalMedicion()`, `importeCalculado()` y el PEM de
-`renderStats()`, así que conviene revisarlos a la vez. BC3manager acumula en
-float igual que nosotros, así que al corregirlo dejaremos de coincidir con él en
-estos casos, y la razón será nuestra.
+El cálculo completo, con los porqués y los casos que duelen, está en
+[`calculo-desgloses.md`](calculo-desgloses.md).
+
+Dos cosas que quedan de aquí: `totalMedicion()`, `importeCalculado()` y el PEM de
+`renderStats()` siguen sumando en float **y está bien** — suman números de *d*
+decimales y redondean a *d*, así que el empate es inalcanzable y el redondeo
+borra el ruido. Y BC3manager acumula en float, así que ya no coincidimos con él
+en estos casos; la razón es nuestra, y el `~C` de los archivos lo respalda.
+
+**4. El orden del campo 1 del `~K` no es el que dice la norma.** Arriba está
+escrito que ese orden «no está claro en la norma» y que se usa el que BC3manager
+verificó empíricamente. En FIEBDC-3/2024 sí está, y explícito:
+`DN \ DD \ DS \ DR \ DI \ DP \ DC \ DM \ DIVISA`, o sea partes iguales,
+dimensiones, total de medición, rendimiento, importe de línea, suma de costes
+directos, precio total del concepto (CD+CI) e importe de medición × precio.
+`regK()` lo reparte de otra manera y no coincide en cuatro de las ocho
+posiciones. En los cinco ejemplos da igual —todas las cifras valen 2 salvo la del
+rendimiento, que las dos lecturas colocan en el mismo sitio— pero con un archivo
+que use valores distintos por parámetro leeríamos mal. El campo 3 sí lo leemos
+bien: verificado casilla por casilla contra el presupuesto oficial calculado de
+`FIEBDC/2024/Documentos-complementarios/RegistroK_ejemplo/`, coincide en las once
+posiciones que ese PDF anota.
+
+Esto además desmonta el motivo escrito en el pendiente 2. El archivo de Costitx
+**sí declara DN y DD**: son las dos primeras cifras del campo 1. La primera va
+vacía (y entonces vale 2 por defecto) y la segunda declara 2. El redondeo de
+medición que aplicamos no es inventado; lo que está mal es la explicación, no el
+número.

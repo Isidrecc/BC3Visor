@@ -488,6 +488,34 @@ function decFrom(x){
   return {m:neg?-m:m, e};
 }
 const decMul=(a,b)=>({m:a.m*b.m, e:a.e+b.e});
+const DEC_CERO={m:0n,e:0};
+
+// Suma exacta: se igualan los exponentes y se suman los enteros. Sumar con el
+// `+` de JS parece inofensivo porque los sumandos ya vienen redondeados, pero
+// 0,88 y 1,70 no existen en binario: `2+1,7+1,15+70+6,16+1,98+0,88+0,88` da
+// 84,74999999999999 en vez de 84,75, y eso destruye el empate del redondeo
+// siguiente. Un empate es siempre un número acabado en 5, o sea justo los que
+// el binario no sabe guardar.
+function decAdd(a,b){
+  if(a.e===b.e) return {m:a.m+b.m, e:a.e};
+  const e=a.e>b.e?a.e:b.e;
+  return {m:a.m*10n**BigInt(e-a.e)+b.m*10n**BigInt(e-b.e), e};
+}
+// División con dígitos de guarda. Al contrario que la suma y el producto, aquí
+// no siempre hay resultado exacto (84,75 ÷ 7 no se acaba), así que se calcula
+// con margen y quien llama redondea después.
+function decDiv(a,b,dec){
+  if(b.m===0n) return DEC_CERO;
+  const e=dec+8;
+  let num=a.m, den=b.m;
+  const k=b.e-a.e+e;
+  if(k>=0) num*=10n**BigInt(k); else den*=10n**BigInt(-k);
+  const neg=(num<0n)!==(den<0n);
+  const A=num<0n?-num:num, B=den<0n?-den:den;
+  let q=A/B;
+  if((A%B)*2n>=B) q+=1n;
+  return {m:neg?-q:q, e};
+}
 
 // Redondeo mitad-arriba: en el empate se aleja del cero (ROUND_HALF_UP).
 function decRound(d,dec){
@@ -526,7 +554,15 @@ function toNum(raw){
 function esPorcentaje(c){
   if(!c) return false;
   if((c.unidad||'').trim()==='%') return true;
-  return (c.codigo||'').startsWith('%');
+  return /[%&]/.test(c.codigo||'');   // la norma: basta con que el código lo lleve
+}
+// El prefijo del código de un porcentaje es una MÁSCARA: dice sobre qué líneas
+// anteriores se aplica. `%0700` no tiene prefijo y va sobre todas; `A%AUX00250`
+// solo sobre las que empiezan por 'A', la mano de obra. Ignorarla hacía que
+// Nova EBAR y Bulevar descuadraran en 37 partidas.
+function mascaraPct(cod){
+  const m=(cod||'').match(/^([^%&]*)[%&]/);
+  return m?m[1]:'';
 }
 // Cantidad de una línea del ~D: factor × rendimiento, y un campo vacío vale 1
 // (pero un 0 explícito vale 0 — es una partida que no se mide en ese padre).
@@ -554,36 +590,47 @@ function calcularPrecios(){
       return p;
     }
     enProceso.add(cod);
-    let total=0;
+    // El acumulado va en decimal exacto de principio a fin: ver decAdd().
+    // Las líneas se guardan una a una porque un porcentaje con máscara no suma
+    // el acumulado entero, solo las líneas que casan con su prefijo.
+    let total=DEC_CERO;
+    const lineas=[];
     for(const h of c.hijos){
-      const hc=get(h.codigo), cant=cantidadHijo(h);
+      const hc=get(h.codigo);
+      // La cantidad se redondea ANTES de multiplicar por el precio, y es la ya
+      // redondeada la que multiplica (ejemplo oficial de FIEBDC, nota *3).
+      let cant=decFrom(cantidadHijo(h));
+      if(K.activo) cant=decRound(cant,K.decCantRend);
       let sub;
       if(hc && esPorcentaje(hc)){
-        // Presto lo trata como una cantidad implícita sobre el acumulado:
-        //   cantidad = acumulado × coef / precio_%   (coef 0,07 · precio_% 7)
+        const pref=mascaraPct(h.codigo);
+        const base = pref===''
+          ? total
+          : lineas.reduce((a,l)=>l.codigo.startsWith(pref)?decAdd(a,l.sub):a, DEC_CERO);
+        // Presto lo trata como una cantidad implícita sobre esa base:
+        //   cantidad = base × coef / precio_%   (coef 0,07 · precio_% 7)
         const precioPct=precioDe(h.codigo);
         if(precioPct){
-          let qty=total*cant/precioPct;
-          if(K.activo){
-            qty=redondea(qty,K.decCantRend);
-            sub=multRed(precioPct,qty,K.decSubtotal);
-          }else sub=precioPct*qty;
+          const pp=decFrom(precioPct);
+          let qty=decDiv(decMul(base,cant),pp,K.activo?K.decCantRend:12);
+          if(K.activo) qty=decRound(qty,K.decCantRend);
+          sub=decMul(pp,qty);
         }else{
-          sub=total*cant;
-          if(K.activo) sub=redondea(sub,K.decSubtotal);
+          sub=decMul(base,cant);
         }
       }else{
-        sub=K.activo ? multRed(precioDe(h.codigo),cant,K.decSubtotal)
-                     : precioDe(h.codigo)*cant;
+        sub=decMul(decFrom(precioDe(h.codigo)),cant);
       }
-      total+=sub;
+      if(K.activo) sub=decRound(sub,K.decSubtotal);
+      lineas.push({codigo:h.codigo, sub});
+      total=decAdd(total,sub);
     }
     enProceso.delete(cod);
-    total=redondea(total, K.activo
+    const p=decNum(decRound(total, K.activo
       ? (c.tipo==='capitulo'?K.decPrecioCapitulo:K.decPrecioPartida)
-      : 4);
-    memo.set(cod,total); c.precioCalc=total;
-    return total;
+      : 4));
+    memo.set(cod,p); c.precioCalc=p;
+    return p;
   }
   for(const cod of P.conceptos.keys()) precioDe(cod);
 }
