@@ -412,22 +412,36 @@ function resolverAliasHash(){
 }
 
 function clasificarTipos(){
-  // Mismas reglas que BC3Manager (clasificar_tipos): el tipo FIEBDC declarado
-  // manda; si falta, heurísticas por estructura.
+  // Capítulo, partida o elemento simple. Primero lo que el archivo DECLARA (el
+  // TIPO, la marca #); solo si no declara nada, se DEDUCE de la estructura.
+  // Con ejemplos, el porqué de cada paso y lo que puede hacerlo fallar: sección
+  // «Clasificación» del CLAUDE.md.
   for(const c of P.conceptos.values()){
-    const esRaiz=c.codigo.endsWith('##');
-    if('1234'.includes(c.tipoF) && c.tipoF){ c.tipo='unitario'; continue; }
+    // 1. El TIPO del ~C (FIEBDC-3/2024, pág. 8): 1 mano de obra, 2 maquinaria,
+    //    3 material, 4 componente adicional de residuo → elemento simple;
+    //    5 clasificación de residuo → agrupa. El 6 («partida alzada») no está en
+    //    la norma: viene de BC3manager. Lo que no es de la norma (EU, PA…) se ignora.
+    if(['1','2','3','4'].includes(c.tipoF)){ c.tipo='unitario'; continue; }
     if(c.tipoF==='5'){ c.tipo='capitulo'; continue; }
     if(c.tipoF==='6'){ c.tipo='partida'; continue; }
+    // 2. La marca del código (pág. 7, obligatoria en el ~C): '##' raíz, '#'
+    //    capítulo, con o sin unidad.
+    if(c.codigo.endsWith('#')){ c.tipo='capitulo'; continue; }
+    // 3. Sin marca, se deduce. «Medido»: aparece detrás de la barra en una ~M
+    //    (~M|DÓNDE\QUÉ|). «Agrega»: alguno de sus hijos se mide dentro de él.
+    const medido=c.mediciones.size>0;
     const agrega=c.hijos.some(h=>{
       const hc=get(h.codigo);
       return hc && (hc.mediciones.has(c.codigo) || hc.codigo.endsWith('##'));
     });
-    if(esRaiz || (c.codigo.endsWith('#') && !c.unidad)) c.tipo='capitulo';
-    else if(c.hijos.length && agrega) c.tipo='capitulo';
-    else if(c.mediciones.size) c.tipo='partida';
-    else if(c.hijos.length) c.tipo=c.unidad?'partida':'capitulo';
-    else c.tipo='unitario';
+    // a. Las dos cosas: decide la unidad. Una partida puede medir un componente
+    //    dentro (Bulevar, VIO.2D160\placa) y tiene unidad; un capítulo de Presto
+    //    antiguo con una ~M falsa no la tiene.
+    if(medido && agrega) c.tipo=c.unidad?'partida':'capitulo';
+    else if(medido) c.tipo='partida';                               // b.
+    else if(c.hijos.length && agrega) c.tipo='capitulo';            // c.
+    else if(c.hijos.length) c.tipo=c.unidad?'partida':'capitulo';   // d.
+    else c.tipo='unitario';                                         // e.
   }
 }
 

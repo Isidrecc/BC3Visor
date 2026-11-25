@@ -174,13 +174,16 @@ function evaluar(archivo) {
 }
 
 // ---- Comparación con la línea base ------------------------------------------
-// [nombre, valor, sentido]: +1 más es mejor, -1 menos es mejor, 0 hay que mirarlo
+// [nombre, valor, sentido]: +1 más es mejor, -1 menos es mejor, 0 hay que mirarlo.
+// 'cuadran': que suban es mejor, pero que bajen NO es peor por sí solo: si no
+// sube a la vez lo que no cuadra, es que se comparan menos (p. ej. una partida
+// que pasa a estar dentro de otra deja de ser fila del árbol). Eso es REVISAR.
 const METRICAS = [
-  ['partidas cuyo precio cuadra', r => r.precio?.ok, +1],
+  ['partidas cuyo precio cuadra', r => r.precio?.ok, 'cuadran'],
   ['partidas cuyo precio NO cuadra', r => r.precio?.mal, -1],
-  ['capítulos cuyo importe cuadra', r => r.importe?.ok, +1],
+  ['capítulos cuyo importe cuadra', r => r.importe?.ok, 'cuadran'],
   ['capítulos cuyo importe NO cuadra', r => r.importe?.mal, -1],
-  ['mediciones que cuadran', r => r.medicion?.ok, +1],
+  ['mediciones que cuadran', r => r.medicion?.ok, 'cuadran'],
   ['mediciones que NO cuadran', r => r.medicion?.mal, -1],
   ['conceptos que no se pintan', r => r.ocultos, -1],
   ['caracteres raros', r => r.raros, -1],
@@ -201,7 +204,10 @@ function comparar(antes, ahora) {
   for (const [nombre, f, s] of METRICAS) {
     const x = f(antes), y = f(ahora);
     if (x === y) continue;
-    nota(`${nombre}: ${x} → ${y}`, s === 0 ? 0 : (Number(y) - Number(x)) * s > 0 ? 1 : -1);
+    const sentido = s === 0 ? 0
+      : s === 'cuadran' ? (Number(y) > Number(x) ? 1 : 0)
+      : (Number(y) - Number(x)) * s > 0 ? 1 : -1;
+    nota(`${nombre}: ${x} → ${y}`, sentido);
   }
   const pa = antes.pem?.veredicto, pb = ahora.pem?.veredicto;
   if (pa !== pb) nota(`PEM: ${pa} → ${pb}`, Math.sign(RANGO_PEM[pb] - RANGO_PEM[pa]));

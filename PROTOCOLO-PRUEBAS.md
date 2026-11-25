@@ -133,7 +133,7 @@ cambio nuevo.
 | `igual` | Nada ha cambiado en ese presupuesto | Nada |
 | `MEJORA` | Cuadra más, o se pintan más conceptos | Comprobar que es real: buscar en el informe uno o dos conceptos que ahora cuadran y contrastarlos con el archivo crudo |
 | `PEOR` | Cuadra menos, o aparece un error | **No se sube.** Ver en el informe qué conceptos fallan, ir al archivo crudo con grep y entenderlo |
-| `REVISAR` | Ha cambiado algo que no es ni mejor ni peor por sí solo: el PEM, el número de partidas… | Explicarlo antes de aceptarlo |
+| `REVISAR` | Ha cambiado algo que no es ni mejor ni peor por sí solo: el PEM, el número de partidas, o que se comparen menos conceptos (bajan los que cuadran sin que suban los que no) | Explicarlo antes de aceptarlo |
 | `NUEVO` | El archivo no estaba en la línea base | Revisarlo y guardar su línea base |
 | `ERROR` | El visor revienta con ese archivo | Igual que `PEOR` |
 

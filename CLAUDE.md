@@ -179,11 +179,69 @@ El parser ya trata las mismas que BC3manager, y conviene no desmontarlas:
 codificación cp1252/cp850 detectada del `~V` (cp850 con tabla manual, el
 navegador no la trae), alias `#` omitido en las referencias de `~D` y `~M` de
 Presto, raíz sintética `OBRA##` cuando no hay `##` (Presto 8.8), clasificación
-capítulo/partida (tipo FIEBDC declarado primero, heurísticas después). A tener en
-cuenta al calcular: un concepto con `~M` propia es partida antes que nada; una
+capítulo/partida (ver «Clasificación», abajo). A tener en cuenta al calcular: una
 `~M` sin líneas de detalle es partida alzada y vale su total declarado; y en una
 línea de medición los factores a 0 cuentan como 1 (una línea «5 / 0 / 0 / 0» mide
 5, no 0).
+
+## Clasificación: capítulo, partida o elemento simple
+
+Muchos archivos no dicen qué es cada concepto (TIPO 0 o vacío), así que
+`clasificarTipos()` lo decide en este orden: primero lo que el archivo
+**declara**; solo si no declara nada, se **deduce** de la estructura.
+
+**1. El TIPO del `~C`** (FIEBDC-3/2024, pág. 8). 1 mano de obra, 2 maquinaria,
+3 material y 4 componente adicional de residuo → elemento simple; 5
+clasificación de residuo → agrupa, como un capítulo. El 6 («partida alzada») no
+está en la norma: viene de BC3manager, que además llamaba al 4 «resto de costes»
+y al 5 «subcapítulo», al revés que la norma de 2016 y la de 2024. Ninguno de los
+29 presupuestos usa el 6. Los valores que no son de la norma (en los ejemplos
+salen `EU`, `EC`, `EA`, `PA`, `IN` y `%`) se ignoran y se pasa al paso 2.
+
+**2. La marca del código** (pág. 7): `##` raíz, `#` capítulo, **con o sin
+unidad**. La norma la hace obligatoria en el `~C` y opcional en el resto de
+registros; por eso Presto escribe `~C|I.ALP#|` pero `~M|I.ALP\VIO.2D160|`. En 27
+de los 29 presupuestos todos los capítulos la llevan; en los otros dos, los
+nodos sin `#` ni siquiera tienen `~C` (árbol de clasificación del banco ARQ+CC y
+clasificaciones de residuos de TCQ, ver pendiente 9).
+
+**3. Sin marca, se deduce.** *Medido*: aparece detrás de la barra en una `~M`
+(`~M|DÓNDE\QUÉ|`), es decir, alguien lo mide. *Agrega*: alguno de sus hijos se
+mide dentro de él.
+
+| | Medido | Agrega | Resultado | Ejemplo |
+|---|---|---|---|---|
+| a | sí | sí | con unidad, **partida**; sin unidad, **capítulo** | el prisma `VIO.2D160` de Bulevar (m): lo miden 12,5 m en alumbrado y él mide la placa dentro |
+| b | sí | no | **partida** | casi todas las partidas |
+| c | no | sí | **capítulo** | un capítulo sin `#` |
+| d | no | no, pero tiene `~D` | con unidad, **partida**; sin unidad, **capítulo** | las partidas de los bancos de precios, que no tienen `~M` |
+| e | no | no, sin `~D` | **elemento simple** | `%MA015` |
+
+Por qué en el caso a decide la unidad: BC3manager avisa de que Presto antiguo
+ponía a veces una `~M` falsa (medición 1) a los capítulos, y Presto permite medir
+un componente dentro de una partida (`~M|VIO.2D160\placa|…|1.05|`, que es el
+desglose del rendimiento 1,05 del `~D`). Los dos son «medido y agrega»; lo que
+los separa es que el capítulo no tiene unidad y la partida sí.
+
+**Lo que puede hacer que falle:**
+
+- **Un capítulo sin `#`, con unidad y con una `~M` falsa** sale partida. Exige
+  un archivo que se salte la norma y además ponga unidad al capítulo. Ninguno en
+  los 29 (ningún capítulo de los 29 tiene `~M`).
+- **Una partida sin unidad que además mide algo dentro** sale capítulo. Ninguna
+  en los 29: los 27 conceptos medidos que agregan tienen unidad.
+- **Un TIPO mal puesto** por el programa (un 3 en una partida, por ejemplo)
+  manda sobre todo lo demás y no se contrasta con nada.
+- **Un programa que use la `#` final para algo que no sea un capítulo.** La `#`
+  intercalada (`ENTIDAD#CONCEPTO`, pág. 7) no cuenta: solo la final.
+- **Un componente medido dentro de una partida cuenta como «medido».** La placa
+  sale partida por el caso b, cuando es un material. Hoy no cambia nada (no es
+  fila del árbol y su precio se usa igual), pero como partida su precio no se
+  redondea a DES como el de un material: un componente así con más decimales
+  podría mover un céntimo el precio de la partida que lo contiene. Lo correcto
+  sería contar solo las `~M` cuyo «dónde» es un capítulo.
+- **Los bancos de precios** no tienen `~M`: solo deciden la marca y la unidad.
+- **Un concepto que solo aparece como padre de un `~D` sin `#`** (pendiente 9).
 
 ## Pendiente
 
@@ -266,7 +324,7 @@ vacía (y entonces vale 2 por defecto) y la segunda declara 2. El redondeo de
 medición que aplicamos no es inventado; lo que está mal es la explicación, no el
 número.
 
-**5. Partidas tomadas por capítulos.** Lo destapó el banco de pruebas. En
+**5. ~~Partidas tomadas por capítulos~~ — HECHO.** Lo destapó el banco de pruebas. En
 Bulevar Peguera, `VIO.2D160`, `VIOPOS6`, `13.05` y otras son partidas —tienen
 unidad y precio en su `~C`— con una medición propia de algún componente de su
 descomposición:
@@ -283,6 +341,18 @@ archivo declara 43,94 €), y los componentes cuentan como conceptos que no se
 pintan. Descuadra 17 de los 39 capítulos de Bulevar. Pista: un concepto con
 unidad no es un capítulo.
 
+Resuelto con la regla de «Clasificación», arriba. Primero se probó poner «con
+`~M` propia, partida» delante de «agrega», como decía entonces este archivo,
+pero BC3manager tenía ese orden al revés a propósito (los capítulos de Presto
+antiguo con una `~M` falsa). La regla final se apoya en la `#` que la norma hace
+obligatoria y, cuando un concepto sin `#` está medido y a la vez agrega, decide
+la unidad. Las cuatro variantes probadas (A, B, C y D) dan lo mismo en Bulevar;
+D es la única que cubre a la vez el capítulo con unidad y el capítulo con `~M`
+falsa. Resultado: Bulevar pasa a 31/31 capítulos y PEM al céntimo
+(2.356.431,29); el Anexo 66.03.01 de Presto 11, de 4.764 capítulos en rojo a
+ninguno y PEM al céntimo; Torrent Gros, de 30 capítulos en rojo a 16; PALMA29
+recupera como capítulos sus 444 familias, que llevan `**` como unidad.
+
 **6. Por investigar, según la línea base del 25-11-2026.** Tres grupos de
 precios de partida que no cuadran, sin analizar todavía:
 
@@ -296,4 +366,37 @@ precios de partida que no cuadran, sin analizar todavía:
 - **Céntimos en Presto 11 y en el banco de Arquímedes.** Diferencias de 1 a 5
   céntimos (`D02009`: 187,26 frente a 187,20). Huele a redondeo. Presto 11 no
   trae campo 3 en el `~K`, así que puede estar ligado al pendiente 4.
+
+**7. Fórmulas en las líneas de medición.** Una línea de `~M` de tipo 3 lleva en
+el comentario una expresión que da su parcial: variables `a b c d` (las cuatro
+columnas: unidades, longitud, anchura, altura), `p` (π), operadores `+ - * / ^`
+y paréntesis. El visor la marca con `fx` en el panel de detalle, pero la calcula
+como un producto normal de las cuatro columnas. Hay fórmulas en tres presupuestos
+de prueba, los tres con mediciones en rojo: Rafal Vell (26 líneas, p. ej.
+`a*b*c*d*1.2`), 48 viviendas Girona (11, `(A+B+C)*D`) y París-Palmanova (2).
+OpenBC3 las evalúa con un intérprete propio, sin `eval` ni `Function` (un BC3 no
+debe poder ejecutar código), y aplica la expresión también a las líneas
+siguientes de la misma `~M` hasta que aparece otra. Ese alcance hay que
+confirmarlo en la norma (`FIEBDC/2024`) antes de copiarlo.
+
+**8. Mediciones de un concepto reutilizado en varias ramas.** `regM()` guarda
+las mediciones en un mapa por padre, así que si llegan varias `~M` con el mismo
+`PADRE\HIJO` se queda con la última. Pasa cuando un concepto se reutiliza en
+varias ramas del árbol: cada rama tiene su `~M`, y lo que las distingue es la
+POSICIÓN, que es la ruta completa desde la raíz. En el Anexo 66.03.01 (Presto
+11), `~M|ArbFN.12_AL\F_3.3.1.D.1_A_AL|` aparece 83 veces (`1\1\1\1\1\`,
+`1\3\1\2\1\`…); en Bulevar, `VIO.2D160\placa` dos veces. En esos casos todas
+valen lo mismo y ningún número cambia, pero si las ramas difieren el importe
+sale mal sin avisar. Afecta a 4 presupuestos de prueba. OpenBC3 tampoco lo
+resuelve: cuando el hijo aparece una sola vez en su padre, suma todas las `~M`
+(daría 83). Lo correcto es indexar la medición por la ruta, y eso implica que el
+importe de un concepto reutilizado dependa de la rama por la que se llega.
+
+**9. La `#` omitida en el padre de un `~D`.** `resolverAliasHash()` arregla las
+referencias sin `#` de los hijos de un `~D` y de las `~M`, pero no la del padre
+del propio `~D`. TCQ escribe así las clasificaciones de residuos de 48 viviendas
+Girona (`~C|ZZ18960#|…|5|` y `~D|ZZ18960|…`), y el visor crea un segundo concepto
+`ZZ18960`, sin descripción, que se queda con los hijos. Están fuera del árbol del
+presupuesto y no cambian ningún importe, pero es la misma omisión de `#` que la
+norma permite en cualquier registro que no sea el `~C`.
 
