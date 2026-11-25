@@ -681,16 +681,35 @@ function medicionCalculada(cod,padre){
   return totalMedicion(c.mediciones.get(padre)||c.mediciones.get('__sin_padre__'));
 }
 
+// Cantidad con la que se calcula el importe: la que DECLARA el archivo para
+// (cod, padre). Es el rendimiento del ~D del padre (factor × rendimiento), que
+// según la norma debe coincidir con el total de la ~M y es lo que Presto toma al
+// importar (en los 29 presupuestos de prueba coinciden 59.247 veces de 59.248).
+// Si el padre no lo lista en su ~D, el total de la ~M. La medición recalculada
+// desde las líneas no entra en el importe: es una comprobación aparte.
+function cantidadImporte(cod,padre){
+  const p=get(padre);
+  const h=p && p.hijos.find(x=>x.codigo===cod);
+  if(h) return cantidadHijo(h);
+  const c=get(cod);
+  const med=c && (c.mediciones.get(padre)||c.mediciones.get('__sin_padre__'));
+  return med && med.totalRaw!=='' ? toNum(med.totalRaw) : 0;
+}
+
 // ---- Precio con CI e importes ---------------------------------------------
 // El estándar define el precio de una unidad de obra como coste directo +
 // coste indirecto, y Presto aplica el % del ~K a todas las partidas por igual.
 // Las líneas '%' internas del desglose ya están dentro del CD: son un coste
 // más, NO el CI global, así que el CI se aplica igualmente por encima.
-function precioConCI(cod){
+// `enCapitulo`: el concepto cuelga directamente de un capítulo. Todo lo que
+// cuelga de un capítulo es una unidad de obra y lleva CI, diga lo que diga su
+// TIPO (Presto 8.8 exporta como TIPO 3 partidas sin descomposición, como las
+// tasas de Andratx, y sigue aplicándoles el CI).
+function precioConCI(cod,enCapitulo){
   const c=get(cod);
   if(!c) return 0;
   const cd=c.precioCalc!==null?c.precioCalc:toNum(c.precioRaw);
-  if(K.ciPct && c.tipo==='partida')
+  if(K.ciPct && (c.tipo==='partida' || enCapitulo))
     return K.activo?multRed(cd,1+K.ciPct,K.decPrecioPartida)
                    :redondea(cd*(1+K.ciPct),2);
   return cd;
@@ -710,10 +729,11 @@ function importeCalculado(cod,padre){
       for(const h of c.hijos) t+=importeCalculado(h.codigo,cod);
       v=redondea(t,K.activo?K.decImporte:2);
     }else{
-      // Partida: precio (con CI) × medición. Sin medición, importe 0.
-      const med=medicionCalculada(cod,padre);
-      v=K.activo?multRed(precioConCI(cod),med,K.decImporte)
-                :redondea(precioConCI(cod)*med,2);
+      // Partida: precio (con CI) × cantidad declarada.
+      const enCap=!!(get(padre) && get(padre).tipo==='capitulo');
+      const q=cantidadImporte(cod,padre);
+      v=K.activo?multRed(precioConCI(cod,enCap),q,K.decImporte)
+                :redondea(precioConCI(cod,enCap)*q,2);
     }
   }
   cacheImporte.set(clave,v);
@@ -774,9 +794,9 @@ function calcDeFila(cod,padre,c){
 }
 
 // "Importe calculado (con CI)":
-//   partida  → precio con CI × medición. El archivo no declara importes de
-//              partida (guarda precio y medición por separado), así que no hay
-//              nada con lo que contrastarlo: va sin color.
+//   partida  → precio con CI × cantidad declarada. El archivo no declara
+//              importes de partida (guarda precio y cantidad por separado), así
+//              que no hay nada con lo que contrastarlo: va sin color.
 //   capítulo → suma de los importes de sus partidas, contra el total que
 //              declara su ~C. Aquí sí hay comparación, y es la que más
 //              descuadres destapa.
@@ -786,8 +806,9 @@ function importeDeFila(cod,padre,c){
   if(c.tipo==='capitulo')
     return celdaCalc(imp,c.precioRaw,dec,'Suma de los importes de sus partidas');
   if(!imp) return '';
-  const t=`Precio con CI ${fmtCalc(precioConCI(cod),K.activo?K.decPrecioPartida:2)}`
-        + ` × medición ${fmtCalc(medicionCalculada(cod,padre),K.activo?K.decCantMed:3)}`;
+  const enCap=!!(get(padre) && get(padre).tipo==='capitulo');
+  const t=`Precio con CI ${fmtCalc(precioConCI(cod,enCap),K.activo?K.decPrecioPartida:2)}`
+        + ` × cantidad declarada ${fmtNum(String(cantidadImporte(cod,padre)))}`;
   return `<span class="calc calc-solo" title="${esc(t)}">${esc(fmtCalc(imp,dec))}</span>`;
 }
 
@@ -867,18 +888,17 @@ function renderStats(){
 // ---- Render: árbol ---------------------------------------------------------
 const claveNodo=(cod,padre)=>padre+'>'+cod;
 
-// Cantidad que declara el archivo para (cod, padre): el total del ~M si existe;
-// si no, el rendimiento del ~D en ese padre. Ambos son datos declarados.
+// Cantidad que declara el archivo para (cod, padre), la misma que usa el
+// importe: el rendimiento del ~D del padre; si no lo lista, el total de la ~M.
+// Ambos son datos declarados y la norma exige que coincidan.
 function cantidadDeclarada(cod,padre){
   const c=get(cod);
   if(!c) return {raw:'',origen:''};
+  const p=get(padre);
+  const h=p && p.hijos.find(x=>x.codigo===cod);
+  if(h && h.rendRaw!=='') return {raw:h.rendRaw,origen:'~D'};
   const med=c.mediciones.get(padre)||c.mediciones.get('__sin_padre__');
   if(med && med.totalRaw!=='') return {raw:med.totalRaw,origen:'~M'};
-  const p=get(padre);
-  if(p){
-    const h=p.hijos.find(h=>h.codigo===cod);
-    if(h && h.rendRaw!=='') return {raw:h.rendRaw,origen:'~D'};
-  }
   return {raw:'',origen:''};
 }
 
@@ -999,7 +1019,7 @@ function renderDetail(cod,padre){
     if(c.tipo==='partida'){
       const dp=K.activo?K.decPrecioPartida:2;
       const cd=c.precioCalc!==null?c.precioCalc:0;   // coste directo calculado
-      const total=precioConCI(cod);                  // CD + CI, ya redondeado
+      const total=precioConCI(cod,true);             // CD + CI, ya redondeado
       const ciImp=cd*K.ciPct;                        // importe del CI sobre el CD
       const fila=(lbl,val,extra='')=>
         `<div class="dp-row${extra}"><span class="dp-lbl">${lbl}</span><span class="dp-val">${val}</span></div>`;
@@ -1021,9 +1041,9 @@ function renderDetail(cod,padre){
           : `<span style="color:var(--red)">El ~C declara un coste directo de ${esc(fmtNum(declara))} — la suma del desglose da ${esc(fmtCalc(cd,dp))}.</span>`}</div>`;
       }
       // Importe en este padre: el número que suma al capítulo.
-      const medImp=medicionCalculada(cod,padre);
-      if(medImp)
-        h+=`<div class="dp-nota">Importe en ${esc(padre||'este capítulo')}: ${esc(fmtCalc(total,dp))} × ${esc(fmtCalc(medImp,K.activo?K.decCantMed:3))} = <strong>${esc(fmtCalc(importeCalculado(cod,padre),K.activo?K.decImporte:2))} €</strong></div>`;
+      const qImp=cantidadImporte(cod,padre);
+      if(qImp)
+        h+=`<div class="dp-nota">Importe en ${esc(padre||'este capítulo')}: ${esc(fmtCalc(total,dp))} × ${esc(fmtNum(String(qImp)))} (cantidad declarada) = <strong>${esc(fmtCalc(importeCalculado(cod,padre),K.activo?K.decImporte:2))} €</strong></div>`;
     }
   }
 
