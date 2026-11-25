@@ -34,9 +34,11 @@ no:
 - **Precio calculado**, solo en las partidas: el coste directo que sale de sumar
   su descomposición, que es lo que el `~C` declara ahí. Un capítulo no tiene
   precio unitario, así que la deja en blanco.
+- **Medición calculada**: la suma de las líneas de medición, con sus fórmulas,
+  contrastada contra la cantidad que declara el archivo.
 - **Importe calculado (con CI)**: en una partida, precio con costes indirectos ×
-  medición; en un capítulo, la suma de los importes de sus partidas, contrastada
-  contra el total que el capítulo declara.
+  la cantidad declarada; en un capítulo, la suma de los importes de sus partidas,
+  contrastada contra el total que el capítulo declara.
 - Arriba, el **PEM calculado** contra el declarado en la raíz.
 
 En el panel de detalle de cada partida, la cadena completa como en el informe de
@@ -46,6 +48,9 @@ El cálculo replica el de Presto con los decimales y coeficientes que declara el
 propio `~K` del archivo, redondeando en la misma cadena y el mismo orden — si no,
 cualquier presupuesto descuadraría por céntimos de redondeo y el aviso no
 significaría nada. No hay tolerancia: o cuadra al último decimal o sale en rojo.
+La única excepción es el redondeo de las líneas de medición, que cada programa
+hace a su manera sin dejarlo escrito en el archivo: la medición cuadra si la
+reproduce cualquiera de las reglas conocidas (Presto 8.8, Presto 21, Menfis).
 
 Lo declarado y lo calculado nunca se mezclan, y el visor no arregla nada. Si algo
 no cuadra, lo dice y ahí lo deja.

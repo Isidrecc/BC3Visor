@@ -50,10 +50,10 @@ en `false` y se calcula a precisión alta sin redondear.
   Trae además los decimales de medición (DN, DD, DS, DSP) que el campo 1 no
   tiene. Sobrescribe al campo 1.
 
-Cadena de redondeo: en cada línea de medición se redondea **cada factor antes de
-multiplicar** (uds → DN, dimensiones → DD), el parcial a DSP y el total a DS. En
-la descomposición: precio básico a DES → subtotal a DI → precio de partida a DUO
-→ CI encima → importe = precio × medición → capítulos = suma de sus hijos.
+Cadena de redondeo de la descomposición: precio básico a DES → subtotal a DI →
+precio de partida a DUO → CI encima → importe = precio × **cantidad declarada** →
+capítulos = suma de sus hijos. La medición recalculada desde las líneas no entra
+en el importe: es una comprobación (ver «Cantidad, importe y medición»).
 
 Tres cosas que cuestan caro descubrir solas:
 
@@ -205,43 +205,43 @@ de los 29 presupuestos todos los capítulos la llevan; en los otros dos, los
 nodos sin `#` ni siquiera tienen `~C` (árbol de clasificación del banco ARQ+CC y
 clasificaciones de residuos de TCQ, ver pendiente 9).
 
-**3. Sin marca, se deduce.** *Medido*: aparece detrás de la barra en una `~M`
-(`~M|DÓNDE\QUÉ|`), es decir, alguien lo mide. *Agrega*: alguno de sus hijos se
-mide dentro de él.
+**3. Archivo que marca sus capítulos con `#`** (los 29 de prueba lo hacen):
+**sin `#` no hay capítulo**, como en Presto 8.8, que exporta sin `#` y con TIPO 0
+lo que no la lleva. Lo que cuelga de un capítulo, se mide o tiene descomposición
+es **partida**, incluida una alzada sin descomposición ni medición (`999.0016C`
+de Costitx); lo demás, elemento simple.
 
-| | Medido | Agrega | Resultado | Ejemplo |
-|---|---|---|---|---|
-| a | sí | sí | con unidad, **partida**; sin unidad, **capítulo** | el prisma `VIO.2D160` de Bulevar (m): lo miden 12,5 m en alumbrado y él mide la placa dentro |
-| b | sí | no | **partida** | casi todas las partidas |
-| c | no | sí | **capítulo** | un capítulo sin `#` |
-| d | no | no, pero tiene `~D` | con unidad, **partida**; sin unidad, **capítulo** | las partidas de los bancos de precios, que no tienen `~M` |
-| e | no | no, sin `~D` | **elemento simple** | `%MA015` |
+**4. Archivo que no marca ningún capítulo:** se deduce de la estructura.
+*Medido*: aparece detrás de la barra en una `~M` (`~M|DÓNDE\QUÉ|`). *Agrega*:
+alguno de sus hijos se mide dentro de él.
 
-Por qué en el caso a decide la unidad: BC3manager avisa de que Presto antiguo
-ponía a veces una `~M` falsa (medición 1) a los capítulos, y Presto permite medir
-un componente dentro de una partida (`~M|VIO.2D160\placa|…|1.05|`, que es el
-desglose del rendimiento 1,05 del `~D`). Los dos son «medido y agrega»; lo que
-los separa es que el capítulo no tiene unidad y la partida sí.
+| | Medido | Agrega | Resultado |
+|---|---|---|---|
+| a | sí | sí | con unidad, **partida**; sin unidad, **capítulo** |
+| b | sí | no | **partida** |
+| c | no | sí | **capítulo** |
+| d | no | no, pero tiene `~D` | con unidad, **partida**; sin unidad, **capítulo** |
+| e | no | no, sin `~D` | **elemento simple** |
+
+En el caso a decide la unidad porque una partida puede medir un componente
+dentro (`~M|VIO.2D160\placa|`) y tiene unidad, mientras que un capítulo de Presto
+antiguo con una `~M` falsa (medición 1, avisa BC3manager) no la tiene.
+
+**En el árbol** se pinta todo lo que cuelga de un capítulo, sea cual sea su
+tipo, y lleva CI: Presto 8.8 exporta como TIPO 3 (material) partidas sin
+descomposición, como las tasas de Andratx, y sigue aplicándoles el CI.
 
 **Lo que puede hacer que falle:**
 
-- **Un capítulo sin `#`, con unidad y con una `~M` falsa** sale partida. Exige
-  un archivo que se salte la norma y además ponga unidad al capítulo. Ninguno en
-  los 29 (ningún capítulo de los 29 tiene `~M`).
-- **Una partida sin unidad que además mide algo dentro** sale capítulo. Ninguna
-  en los 29: los 27 conceptos medidos que agregan tienen unidad.
-- **Un TIPO mal puesto** por el programa (un 3 en una partida, por ejemplo)
-  manda sobre todo lo demás y no se contrasta con nada.
+- **Un archivo que use la `#` solo en algunos capítulos**: los que no la lleven
+  saldrían como partidas. Ninguno de los 29 lo hace.
+- **Un TIPO mal puesto** por el programa manda sobre todo lo demás para el
+  cálculo (un material se redondea a DES), aunque si cuelga de un capítulo se
+  pinta y lleva CI igual.
 - **Un programa que use la `#` final para algo que no sea un capítulo.** La `#`
   intercalada (`ENTIDAD#CONCEPTO`, pág. 7) no cuenta: solo la final.
-- **Un componente medido dentro de una partida cuenta como «medido».** La placa
-  sale partida por el caso b, cuando es un material. Hoy no cambia nada (no es
-  fila del árbol y su precio se usa igual), pero como partida su precio no se
-  redondea a DES como el de un material: un componente así con más decimales
-  podría mover un céntimo el precio de la partida que lo contiene. Lo correcto
-  sería contar solo las `~M` cuyo «dónde» es un capítulo.
-- **Los bancos de precios** no tienen `~M`: solo deciden la marca y la unidad.
-- **Un concepto que solo aparece como padre de un `~D` sin `#`** (pendiente 9).
+- **En archivos sin ninguna `#`**: un capítulo con unidad y `~M` falsa saldría
+  partida, y una partida sin unidad que mide algo dentro, capítulo.
 
 ### Lo que dicen la norma y Presto (investigado el 26-11-2026)
 
@@ -262,57 +262,65 @@ los separa es que el capítulo no tiene unidad y la partida sí.
 - **Un concepto puede cambiar de naturaleza y conservar sus líneas de
   medición**, que entonces dejan de contar en el cálculo (manual de Presto): de
   ahí salen los capítulos con medición falsa que avisaba BC3manager.
-- **El total de la `~M` tiene que coincidir con el rendimiento del `~D`**, y al
-  leer se recalcula desde las líneas (pág. 21). La cantidad de una partida está en
-  el `~D` de su capítulo; la `~M` es su desglose (pendiente 10).
+- **El total de la `~M` tiene que coincidir con el rendimiento del `~D`**, y
+  según la norma al leer se recalcula desde las líneas (pág. 21). La cantidad de
+  una partida está en el `~D` de su capítulo; la `~M` es su desglose. En los 29
+  presupuestos coinciden en 59.247 relaciones de 59.248.
+- **Presto 8.8 al importar toma la cantidad del `~D` y no recalcula**: exportó
+  tal cual los totales que no cuadraban con sus líneas, y en el caso 15 (`~M` 10,
+  `~D` 7) usó el 7. Solo recalculó la medición que se abrió en pantalla.
+- **Al recalcular, Presto 8.8 redondea las dimensiones pero no las unidades**, y
+  al importar reescribe la dimensión ya redondeada (0,0475 → 0,05). Presto 21 no
+  redondeó (Nova EBAR: 333,14 frente a los 335,26 de Presto 8.8) y Menfis 8
+  redondea también las unidades. El BC3 no dice qué regla usó.
 - **Las fórmulas** (líneas de tipo 3) valen hasta la siguiente línea que defina
-  otra, y no se multiplican por las unidades (pág. 21).
+  otra, y no se multiplican por las unidades (pág. 21). TCQ lo hace así (Girona,
+  9 de 10 al milésimo); Presto 8.8 aplica cada fórmula solo a su línea.
+- **Una relación tiene una sola medición.** Con dos `~M` de la misma relación
+  (casos 8 y 9), Presto 8.8 se queda con la última, igual que el visor.
 
 `pruebas/casos/casos-clasificacion-v2.bc3` reúne todos estos casos en un BC3
 sintético para pasarlo por Presto (guía en `pruebas/casos/LEEME.md`).
 
+## Cantidad, importe y medición
+
+**Importe** de lo que cuelga de un capítulo = precio con CI × **cantidad
+declarada** (`cantidadImporte()`): el rendimiento del `~D` del capítulo (factor ×
+rendimiento) o, si el capítulo no lo lista, el total de su `~M`. Es lo que toma
+Presto al importar, y la norma exige que `~D` y `~M` coincidan. Una partida sin
+`~M` tiene su cantidad igual: la del `~D` (las tasas de Andratx, 117 partidas en
+los presupuestos de prueba).
+
+**Medición recalculada** (`totalMedicion()`, columna «Medición calculada» y
+panel de detalle): la suma de las líneas de la `~M`, contra la cantidad
+declarada. Es solo una comprobación, en verde o en rojo; no entra en el importe.
+
+- **Redondeo de los factores.** El BC3 no dice qué regla usó el programa, así que
+  cuadra si la reproduce alguna conocida (`REGLAS_MEDICION`): dimensiones a DD y
+  unidades sin redondear (Presto 8.8, la principal, la que se enseña si ninguna
+  cuadra); también las unidades a DN (Menfis 8); o ningún factor (Presto 21). El
+  rojo queda para lo que no reproduce ninguna: eso sí es un archivo que no cuadra
+  consigo mismo. El parcial va a DSP y el total a DS.
+- **Factores a 0 o vacíos** son neutros: una línea «5 / 0 / 0 / 0» mide 5.
+- **Fórmulas** (tipo 3): `evaluarFormula()`, un intérprete propio sin `eval` ni
+  `Function`, con `a b c d` (las cuatro columnas), `p` (π), `+ - * / ^` y
+  paréntesis. La fórmula vale para su línea y las siguientes hasta otra, como
+  dice la norma (en el panel, `fx↓` marca las que la heredan). Una fórmula que no
+  se puede evaluar deja la medición sin valor (`?`), nunca en 0.
+- **Subtotales** (tipo 1 y 2): sin números no suman. Con números cuentan como una
+  línea normal, aunque la norma diga que no: Presto 11 escribe líneas de tipo 1
+  con unidades y las cuenta (Anexo 66.03.01, 128 mediciones).
+
 ## Pendiente
 
-**1. Las partidas sin `~D` ni `~M` no se pintan.** `clasificarTipos()` las manda
-a `unitario`, y `filaNodo()` solo pinta capítulos y partidas, así que
-desaparecen del árbol. Caso: `999.0016C` («Partida alçada a justificar gestió de
-residus d'excavació») en `PRESUPUESTOS-PRUEBA/…Costitx…`, que cuelga del `~D` del `04#` y
-Presto sí enseña. No afecta a ningún total —rendimiento 0 y sin medición, importe
-0— pero falta una línea del presupuesto. La regla que nos falta es la que usa
-Presto: **lo que cuelga del `~D` de un capítulo es una partida**, tenga o no
-descomposición y medición.
+**1. ~~Las partidas sin `~D` ni `~M` no se pintan~~ — HECHO.** Lo que cuelga de
+un capítulo es partida y se pinta (`999.0016C` de Costitx), ver «Clasificación».
 
-**2. La medición: la fila no cuadra consigo misma.** La columna «Cantidad»
-enseña el total declarado en el `~M`, pero el importe se calcula con otro número
-—el que sale de sumar las líneas de medición— y en ningún sitio se dice. Caso:
-`211.0020`, el betún del MBC, en `PRESUPUESTOS-PRUEBA/…Costitx…`.
-
-```
-~M|02#\211.0020|2\3\|18.23|\MBC tipus AC16 surf\0.045\405.12\\\|
-```
-
-El `~M` declara `18,23` y nosotros calculamos `20,26`. La fila muestra cantidad
-18,23 y precio con CI 1.020,78, pero el importe no es 18.608,82 sino 20.681,00 —
-2.072,18 € de más en ese capítulo, y sin ninguna pista de por qué.
-
-**Qué hay que hacer.** Calcular la medición está bien y se mantiene, pero tiene
-que verse: una columna de **medición calculada** junto a la declarada, en verde
-si coinciden y en rojo si no, igual que ya se hace con el precio. Un descuadre de
-medición es información sobre el archivo; hay que enseñarlo, no esconderlo dentro
-del importe.
-
-**Decisión técnica pendiente:** de dónde sale la diferencia. En `parcialLinea()`
-redondeamos cada factor antes de multiplicar, así que `0,045` se convierte en
-`0,05` y `0,05 × 405,12 = 20,26`. Ese redondeo usa `K.decNum = 2`, **que este
-archivo no declara por ninguna parte**: su `~K` no trae campo 3, y el campo 1 no
-incluye DN ni DD. Es un valor que nos hemos inventado, en contra de la regla de
-no hardcodear nada. Sin redondear el factor sale `18,2304 → 18,23`, exactamente
-lo declarado. Hay que decidir qué hacer cuando el `~K` no declara DN/DD.
-
-**Y antes de tocarlo, documentarlo.** Falta explicar en este archivo, en lenguaje
-llano y sin jerga de Presto, cómo se calcula el precio de una partida y cómo se
-calcula una medición. Si vamos a enseñar dos cifras y marcar una en rojo, hay que
-poder explicar de dónde sale cada una.
+**2. ~~La medición: la fila no cuadra consigo misma~~ — HECHO.** El importe usa
+la cantidad declarada y la medición recalculada se enseña aparte, en verde o en
+rojo, con las reglas de «Cantidad, importe y medición». El betún `211.0020` de
+Costitx (`0,045 × 405,12`) cuadra: 18,23 sin redondear las unidades, como hace
+Presto 8.8.
 
 **3. ~~El céntimo de `542.0001`~~ — HECHO.** El acumulador de
 `calcularPrecios()` sumaba en float y rompía los empates del redondeo. Resuelto
@@ -381,6 +389,10 @@ falsa. Resultado: Bulevar pasa a 31/31 capítulos y PEM al céntimo
 ninguno y PEM al céntimo; Torrent Gros, de 30 capítulos en rojo a 16; PALMA29
 recupera como capítulos sus 444 familias, que llevan `**` como unidad.
 
+Después se simplificó con lo que se vio en Presto 8.8: en un archivo que marca
+sus capítulos, sin `#` no hay capítulo, y la deducción por estructura (con el
+desempate por la unidad) queda para archivos sin ninguna marca.
+
 **6. Por investigar, según la línea base del 25-11-2026.** Tres grupos de
 precios de partida que no cuadran, sin analizar todavía:
 
@@ -395,17 +407,9 @@ precios de partida que no cuadran, sin analizar todavía:
   céntimos (`D02009`: 187,26 frente a 187,20). Huele a redondeo. Presto 11 no
   trae campo 3 en el `~K`, así que puede estar ligado al pendiente 4.
 
-**7. Fórmulas en las líneas de medición.** Una línea de `~M` de tipo 3 lleva en
-el comentario una expresión que da su parcial: variables `a b c d` (las cuatro
-columnas: unidades, longitud, anchura, altura), `p` (π), operadores `+ - * / ^`
-y paréntesis. El visor la marca con `fx` en el panel de detalle, pero la calcula
-como un producto normal de las cuatro columnas. Hay fórmulas en tres presupuestos
-de prueba, los tres con mediciones en rojo: Rafal Vell (26 líneas, p. ej.
-`a*b*c*d*1.2`), 48 viviendas Girona (11, `(A+B+C)*D`) y París-Palmanova (2).
-OpenBC3 las evalúa con un intérprete propio, sin `eval` ni `Function` (un BC3 no
-debe poder ejecutar código), y aplica la expresión también a las líneas
-siguientes de la misma `~M` hasta que aparece otra. Ese alcance hay que
-confirmarlo en la norma (`FIEBDC/2024`) antes de copiarlo.
+**7. ~~Fórmulas en las líneas de medición~~ — HECHO.** Se evalúan con
+`evaluarFormula()` y la fórmula vale también para las líneas siguientes, como
+dice la norma. Rafal Vell pasa a 983 de 983 mediciones y Girona a 491 de 494.
 
 **8. Mediciones de un concepto reutilizado en varias ramas.** `regM()` guarda
 las mediciones en un mapa por padre, así que si llegan varias `~M` con el mismo
@@ -419,25 +423,15 @@ sale mal sin avisar. Afecta a 4 presupuestos de prueba. OpenBC3 tampoco lo
 resuelve: cuando el hijo aparece una sola vez en su padre, suma todas las `~M`
 (daría 83). Lo correcto es indexar la medición por la ruta, y eso implica que el
 importe de un concepto reutilizado dependa de la rama por la que se llega.
+Presto 8.8 hace lo mismo que el visor (se queda con la última, casos 8 y 9), así
+que en archivos de Presto no es un fallo; queda abierto para otros programas.
 
-**9. La `#` omitida en el padre de un `~D`.** `resolverAliasHash()` arregla las
-referencias sin `#` de los hijos de un `~D` y de las `~M`, pero no la del padre
-del propio `~D`. TCQ escribe así las clasificaciones de residuos de 48 viviendas
-Girona (`~C|ZZ18960#|…|5|` y `~D|ZZ18960|…`), y el visor crea un segundo concepto
-`ZZ18960`, sin descripción, que se queda con los hijos. En Girona están fuera
-del árbol del presupuesto y no cambian ningún importe, pero en un capítulo de
-verdad lo dejarían a cero: el caso 12 de `pruebas/casos/casos-clasificacion-v2.bc3`
-da 0,00 donde el archivo declara 40,00. Es la misma omisión de `#` que la norma
-permite en cualquier registro que no sea el `~C`.
+**9. ~~La `#` omitida en el padre de un `~D`~~ — HECHO.** `resolverAliasHash()`
+une el padre escrito sin `#` con la ficha que la lleva, si no tiene ficha propia.
+El banco PALMA29 recupera así su árbol (1.245 precios y 514 capítulos que
+cuadran) y Girona sus clasificaciones de residuos.
 
-**10. Partidas sin `~M`: la cantidad está en el `~D` y el visor la ignora.**
-`importeCalculado()` multiplica el precio por `medicionCalculada()`, que solo
-mira las `~M`. Una partida cuya cantidad está solo en el rendimiento del `~D` de
-su capítulo sale con importe 0, aunque `cantidadDeclarada()` ya enseña ese
-rendimiento en la columna «Cantidad». Según la norma el total de la `~M` debe
-coincidir con ese rendimiento, así que el `~D` es la cantidad y la `~M` su
-desglose. Pasa con 117 partidas de los presupuestos de prueba: 113 de Menfis 6,
-1 de Menfis 8 y 3 de Andratx (Presto 25), entre ellas `ALOTASAIN`, «Tasa vertido
-inerte», con 31.684,52 en el `~D` del `CAP09#`. OpenBC3 sí usa el rendimiento
-cuando no hay `~M`. Caso 7 (`P07B`) del archivo de casos.
-
+**10. ~~Partidas sin `~M`: la cantidad está en el `~D` y el visor la ignora~~ —
+HECHO.** El importe usa la cantidad declarada (`cantidadImporte()`), así que las
+117 partidas con la cantidad solo en el `~D` dejan de valer 0. Con eso, el PEM
+cuadra al céntimo en Alqueria, Nova EBAR, Bulevar, AENA y Andratx.

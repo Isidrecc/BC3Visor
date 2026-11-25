@@ -84,3 +84,21 @@ Contraste con los presupuestos reales: «redondear solo las dimensiones» cuadra
 Costitx y Portocolom). Falla solo `GMTGRF02`, la misma línea en Nova EBAR y en
 Andratx. Con las fórmulas evaluadas, Rafal Vell (Presto 11) cuadra sus 18
 mediciones con fórmula.
+
+## BC3visor tras los cambios del 26-11-2026
+
+Con el importe calculado con la cantidad declarada, la medición recalculada
+aparte, capítulo = `#` y el padre de un `~D` sin `#` unido a su ficha, BC3visor
+calcula un PEM de **3.295,25 €, el mismo que Presto 8.8** en la exportación
+limpia de este archivo.
+
+| Caso | BC3visor | Medición calculada |
+|---|---|---|
+| 1 a 9 | ✓ todos los capítulos cuadran | ✓ |
+| 10 | ✓ 380,00 | ✓ 19 (9 + 6 + 4: la línea 2 hereda la fórmula, como dice la norma; Presto 8.8 daría 17) |
+| 11 | ✓ 459,60 | ✓ 18,23 y 4,75 (P11B cuadra sin redondear, regla de Presto 21) |
+| 12 | ✓ 40,00 | ✓ |
+| 13 | ✓ 405,20 | ✓ 20,26 redondeando también las unidades (regla de Menfis 8) |
+| 14 | ✓ 240,00 | ✗ las líneas dan 10 y se declara 12: el archivo no cuadra consigo mismo |
+| 15 | ✗ 140,00 (declara 200) | ✓ 10 contra la `~M`; el importe usa el 7 del `~D`, como Presto 8.8 |
+
