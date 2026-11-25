@@ -94,17 +94,16 @@ const MEDIR = new vm.Script(String.raw`(function (buf) {
   let filas = 0, ocultos = 0, partidasSinDesc = 0;
   const vistos = new Set(), vistas = new Set();
 
-  // El mismo recorrido que renderTree()/filaNodo(), con todo desplegado.
+  // El mismo recorrido que renderTree()/filaNodo(), con todo desplegado: todo
+  // lo que cuelga de un capítulo es una fila. «No se pintan» son los hijos que
+  // un ~D nombra y que no existen como concepto.
   function recorrer(cod, padre, prof) {
     const c = get(cod);
-    if (!c) return;
-    if (c.tipo !== 'capitulo' && c.tipo !== 'partida') {
-      ocultos++; det.ocultos.push({ cod, padre, resumen: c.resumen, tipo: c.tipo, tipoF: c.tipoF });
-      return;
-    }
+    if (!c) { ocultos++; det.ocultos.push({ cod, padre, resumen: '(no existe en el archivo)', tipo: '', tipoF: '' }); return; }
     const clave = padre + '>' + cod;
     if (vistos.has(clave) || prof > 500) return;
     vistos.add(clave); filas++;
+    if (c.tipo !== 'capitulo' && c.tipo !== 'partida') return;   // elemento simple en un capítulo: fila sin desglose
     if (c.tipo === 'partida') {
       // El precio no depende del capítulo: cada partida cuenta una sola vez.
       if (vistas.has(cod)) return;

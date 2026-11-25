@@ -417,19 +417,40 @@ function clasificarTipos(){
   // TIPO, la marca #); solo si no declara nada, se DEDUCE de la estructura.
   // Con ejemplos, el porqué de cada paso y lo que puede hacerlo fallar: sección
   // «Clasificación» del CLAUDE.md.
+  const simple=c=>['1','2','3','4'].includes(c.tipoF);
+  // ¿Marca el archivo sus capítulos con '#'? Los 29 presupuestos de prueba lo
+  // hacen, y Presto no toma por capítulo nada que no la lleve.
+  const usaMarca=[...P.conceptos.keys()].some(k=>/[^#]#$/.test(k));
+  // Lo que cuelga directamente de un capítulo es una unidad de obra.
+  const hijosDeCapitulo=new Set();
+  for(const c of P.conceptos.values())
+    if(!simple(c) && (c.codigo.endsWith('#') || c.tipoF==='5'))
+      for(const h of c.hijos) hijosDeCapitulo.add(h.codigo);
   for(const c of P.conceptos.values()){
     // 1. El TIPO del ~C (FIEBDC-3/2024, pág. 8): 1 mano de obra, 2 maquinaria,
     //    3 material, 4 componente adicional de residuo → elemento simple;
     //    5 clasificación de residuo → agrupa. El 6 («partida alzada») no está en
     //    la norma: viene de BC3manager. Lo que no es de la norma (EU, PA…) se ignora.
-    if(['1','2','3','4'].includes(c.tipoF)){ c.tipo='unitario'; continue; }
+    //    Un elemento simple que cuelga de un capítulo se pinta igual en el árbol
+    //    y lleva CI (filaNodo, importeCalculado): Presto 8.8 exporta como TIPO 3
+    //    partidas sin descomposición, como las tasas de Andratx.
+    if(simple(c)){ c.tipo='unitario'; continue; }
     if(c.tipoF==='5'){ c.tipo='capitulo'; continue; }
     if(c.tipoF==='6'){ c.tipo='partida'; continue; }
     // 2. La marca del código (pág. 7, obligatoria en el ~C): '##' raíz, '#'
     //    capítulo, con o sin unidad.
     if(c.codigo.endsWith('#')){ c.tipo='capitulo'; continue; }
-    // 3. Sin marca, se deduce. «Medido»: aparece detrás de la barra en una ~M
-    //    (~M|DÓNDE\QUÉ|). «Agrega»: alguno de sus hijos se mide dentro de él.
+    // 3. Archivo que marca sus capítulos: sin '#' no hay capítulo, como en
+    //    Presto. Lo que cuelga de un capítulo, se mide o se descompone es
+    //    partida (incluida una alzada sin descomposición ni medición, como
+    //    999.0016C de Costitx); lo demás, elemento simple.
+    if(usaMarca){
+      c.tipo=(hijosDeCapitulo.has(c.codigo) || c.mediciones.size || c.hijos.length)?'partida':'unitario';
+      continue;
+    }
+    // 4. Archivo sin ninguna marca '#': se deduce de la estructura.
+    //    «Medido»: aparece detrás de la barra en una ~M (~M|DÓNDE\QUÉ|).
+    //    «Agrega»: alguno de sus hijos se mide dentro de él.
     const medido=c.mediciones.size>0;
     const agrega=c.hijos.some(h=>{
       const hc=get(h.codigo);
@@ -1031,12 +1052,18 @@ function renderTree(){
   for(const h of raiz.hijos) filaNodo(tb,h.codigo,P.raiz,0);
 }
 
+// Todo lo que cuelga de un capítulo es una fila del árbol, sea cual sea su
+// tipo: una partida, o un elemento simple puesto directamente en el capítulo
+// (Presto 8.8 exporta así algunas partidas sin descomposición).
 function filaNodo(tbody,cod,padre,nivel){
   const c=get(cod);
-  if(!c || (c.tipo!=='capitulo' && c.tipo!=='partida')) return;
+  if(!c) return;
   const esCap=c.tipo==='capitulo';
   const clave=claveNodo(cod,padre);
-  const hijosVisibles=esCap?c.hijos.filter(h=>{const hc=get(h.codigo);return hc&&(hc.tipo==='capitulo'||hc.tipo==='partida');}):[];
+  const hijosVisibles=esCap?c.hijos.filter(h=>get(h.codigo)):[];
+  const badge=esCap?['Cap','badge-cap']
+    : c.tipo==='partida'?['Part','badge-part']
+    : (BADGE_TIPO[c.tipoF]||['Part','badge-part']);
   const abierto=abiertos.has(clave);
 
   const tr=document.createElement('tr');
@@ -1047,7 +1074,7 @@ function filaNodo(tbody,cod,padre,nivel){
     `<td class="col-cod cod">${esc(cod)}</td>`+
     `<td class="col-resumen"><span class="tt-indent" style="width:${nivel*16}px"></span>`+
       `<span class="tt-toggle ${hijosVisibles.length?'':'leaf'}${abierto?' open':''}">▶</span>`+
-      `<span class="tt-badge ${esCap?'badge-cap':'badge-part'}">${esCap?'Cap':'Part'}</span>`+
+      `<span class="tt-badge ${badge[1]}">${badge[0]}</span>`+
       `${esc(c.resumen)}</td>`+
     `<td class="col-ud">${esc(c.unidad)}</td>`+
     `<td class="num col-cant">${esCap?'':celdaNum(cant.raw)}</td>`+
@@ -1081,7 +1108,7 @@ function renderDetail(cod,padre){
     <div class="detail-name">${esc(c.resumen)||'<span style="color:var(--text-muted)">Sin resumen</span>'}</div>
     <div class="detail-meta">
       <div class="detail-meta-item"><span class="detail-meta-label">Unidad</span><span class="detail-meta-value">${esc(c.unidad)||'—'}</span></div>`;
-  if(c.tipo==='partida')
+  if(c.tipo!=='capitulo')
     h+=`<div class="detail-meta-item"><span class="detail-meta-label">Cantidad ${cant.origen?'('+cant.origen+')':''}</span><span class="detail-meta-value">${cant.raw?celdaNum(cant.raw):'—'}</span></div>`;
   h+=`<div class="detail-meta-item"><span class="detail-meta-label">Precio (~C)</span><span class="detail-meta-value green">${c.precioRaw?celdaNum(c.precioRaw)+' €':'—'}</span></div>`;
   if(c.fecha)
