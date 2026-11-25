@@ -10,6 +10,8 @@ PRESUPUESTOS-PRUEBA/
 *.TCQ
 *.bc3
 *.BC3
+# Excepción: los BC3 sintéticos de pruebas/casos son nuestros, sin datos de clientes
+!pruebas/casos/*.bc3
 *.pzh
 *.bak
 

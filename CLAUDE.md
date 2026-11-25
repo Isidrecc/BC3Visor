@@ -243,6 +243,34 @@ los separa es que el capítulo no tiene unidad y la partida sí.
 - **Los bancos de precios** no tienen `~M`: solo deciden la marca y la unidad.
 - **Un concepto que solo aparece como padre de un `~D` sin `#`** (pendiente 9).
 
+### Lo que dicen la norma y Presto (investigado el 26-11-2026)
+
+- **Medir dentro de una partida es normal.** La `~M` recoge las cantidades en que
+  interviene un concepto en la descomposición de otro de mayor rango
+  (FIEBDC-3/2024, pág. 21). El manual de Presto lo confirma: las líneas de
+  medición son de la relación capítulo → partida, pero las relaciones de otros
+  tipos pueden llevarlas «para crear presupuestos parciales o desglosar un
+  rendimiento», sin planificar ni certificar.
+- **Las mediciones son de la relación, no del concepto.** En Presto cada pareja
+  superior–inferior es una relación única, un concepto no puede tener dos veces
+  el mismo inferior, y los capítulos no pueden estar en dos sitios. Así que en un
+  archivo de Presto las `~M` repetidas de una misma relación (pendiente 8) valen
+  siempre lo mismo.
+- **Presto asigna la naturaleza por el código** («máscaras» configurables por
+  obra) y la guarda con números propios (0 raíz, 4 capítulo, 5 partida, 6 mano de
+  obra, 7 material, 8 maquinaria, 9 otros), distintos del TIPO de FIEBDC.
+- **Un concepto puede cambiar de naturaleza y conservar sus líneas de
+  medición**, que entonces dejan de contar en el cálculo (manual de Presto): de
+  ahí salen los capítulos con medición falsa que avisaba BC3manager.
+- **El total de la `~M` tiene que coincidir con el rendimiento del `~D`**, y al
+  leer se recalcula desde las líneas (pág. 21). La cantidad de una partida está en
+  el `~D` de su capítulo; la `~M` es su desglose (pendiente 10).
+- **Las fórmulas** (líneas de tipo 3) valen hasta la siguiente línea que defina
+  otra, y no se multiplican por las unidades (pág. 21).
+
+`pruebas/casos/casos-clasificacion-v2.bc3` reúne todos estos casos en un BC3
+sintético para pasarlo por Presto (guía en `pruebas/casos/LEEME.md`).
+
 ## Pendiente
 
 **1. Las partidas sin `~D` ni `~M` no se pintan.** `clasificarTipos()` las manda
@@ -396,7 +424,20 @@ importe de un concepto reutilizado dependa de la rama por la que se llega.
 referencias sin `#` de los hijos de un `~D` y de las `~M`, pero no la del padre
 del propio `~D`. TCQ escribe así las clasificaciones de residuos de 48 viviendas
 Girona (`~C|ZZ18960#|…|5|` y `~D|ZZ18960|…`), y el visor crea un segundo concepto
-`ZZ18960`, sin descripción, que se queda con los hijos. Están fuera del árbol del
-presupuesto y no cambian ningún importe, pero es la misma omisión de `#` que la
-norma permite en cualquier registro que no sea el `~C`.
+`ZZ18960`, sin descripción, que se queda con los hijos. En Girona están fuera
+del árbol del presupuesto y no cambian ningún importe, pero en un capítulo de
+verdad lo dejarían a cero: el caso 12 de `pruebas/casos/casos-clasificacion-v2.bc3`
+da 0,00 donde el archivo declara 40,00. Es la misma omisión de `#` que la norma
+permite en cualquier registro que no sea el `~C`.
+
+**10. Partidas sin `~M`: la cantidad está en el `~D` y el visor la ignora.**
+`importeCalculado()` multiplica el precio por `medicionCalculada()`, que solo
+mira las `~M`. Una partida cuya cantidad está solo en el rendimiento del `~D` de
+su capítulo sale con importe 0, aunque `cantidadDeclarada()` ya enseña ese
+rendimiento en la columna «Cantidad». Según la norma el total de la `~M` debe
+coincidir con ese rendimiento, así que el `~D` es la cantidad y la `~M` su
+desglose. Pasa con 117 partidas de los presupuestos de prueba: 113 de Menfis 6,
+1 de Menfis 8 y 3 de Andratx (Presto 25), entre ellas `ALOTASAIN`, «Tasa vertido
+inerte», con 31.684,52 en el `~D` del `CAP09#`. OpenBC3 sí usa el rendimiento
+cuando no hay `~M`. Caso 7 (`P07B`) del archivo de casos.
 

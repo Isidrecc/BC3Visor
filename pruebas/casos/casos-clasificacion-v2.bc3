@@ -1,0 +1,106 @@
+~V|BC3visor|FIEBDC-3/2020\261126|BC3visor pruebas v2||ANSI||2||||
+~K|2\2\2\3\2\2\2\2\EUR\|0\0\0\0\21\|3\2\\3\3\\2\2\2\2\2\2\2\2\EUR\|
+~C|MAT01|m|Material genérico|10|261126|3|
+~C|MAT02|ud|Placa (componente que se mide dentro de la partida)|2|261126|3|
+~C|MO01|h|Oficial 1ª|20|261126|1|
+~C|PRUEBA##||Pruebas de clasificación y medición de BC3visor (v2)|3355.25|261126|0|
+~D|PRUEBA##|C01#\1\1\C02#\1\1\C03#\1\1\C04#\1\1\C05#\1\1\C06#\1\1\C07#\1\1\C08#\1\1\C09#\1\1\C10#\1\1\C11#\1\1\C12#\1\1\C13#\1\1\C14#\1\1\C15#\1\1\|
+~C|C01#||CASO 1: capítulo normal (control)|200|261126|0|
+~T|C01#|Control: capítulo con # y sin unidad, una partida medida 10 m. Todo programa debería verlo igual.|
+~C|P01|m|Partida normal|20|261126|0|
+~D|P01|MAT01\1\1\MO01\1\0.5\|
+~D|C01#|P01\1\10\|
+~M|C01#\P01|1\1\|10|\Línea normal\1\10\\\|
+~C|C02#|ud|CASO 2: capítulo con # y con unidad (ud)|100|261126|0|
+~T|C02#|Presto v1: sigue siendo capítulo y conserva la unidad. Falta ver qué escribe al exportar.|
+~C|P02|m|Partida del capítulo con unidad|20|261126|0|
+~D|P02|MAT01\1\1\MO01\1\0.5\|
+~D|C02#|P02\1\5\|
+~M|C02#\P02|2\1\|5|\\5\\\\|
+~C|C03#||CASO 3: contiene un subcapítulo sin #|80|261126|0|
+~T|C03#|S03 agrupa una partida pero su código no lleva #. Presto v1 no lo hizo capítulo. Mirar su naturaleza (Nat) y qué escribe al exportar.|
+~C|S03||Subcapítulo sin # (sin unidad)|80|261126|0|
+~D|C03#|S03\1\1\|
+~C|P03|m|Partida dentro del subcapítulo sin #|20|261126|0|
+~D|P03|MAT01\1\1\MO01\1\0.5\|
+~D|S03|P03\1\4\|
+~M|S03\P03|3\1\1\|4|\\4\\\\|
+~C|C04#||CASO 4: subcapítulo sin # con medición falsa (1)|60|261126|0|
+~T|C04#|S04 no lleva # y tiene una medición de 1 dentro de C04#, como los capítulos de Presto antiguo. Presto v1 no lo hizo capítulo.|
+~C|S04||Subcapítulo sin # con medición 1|60|261126|0|
+~D|C04#|S04\1\1\|
+~M|C04#\S04|4\1\|1|\\1\\\\|
+~C|P04|m|Partida dentro del subcapítulo con medición falsa|20|261126|0|
+~D|P04|MAT01\1\1\MO01\1\0.5\|
+~D|S04|P04\1\3\|
+~M|S04\P04|4\1\1\|3|\\3\\\\|
+~C|C05#||CASO 5: partida con unidad que mide un componente dentro|276.25|261126|0|
+~T|C05#|P05 (m) se mide 12,5 en C05# y a su vez mide la placa MAT02 dentro (1,05, desglose del rendimiento). Debe ser partida.|
+~C|P05|m|Partida con un componente medido dentro|22.1|261126|0|
+~D|P05|MAT01\1\1\MAT02\1\1.05\MO01\1\0.5\|
+~D|C05#|P05\1\12.5\|
+~M|C05#\P05|5\1\|12.5|\\1\12.5\\\|
+~M|P05\MAT02|5\1\2\|1.05|\Desglose del rendimiento de la placa\1.05\\\\|
+~C|C06#||CASO 6: partida SIN unidad que mide un componente dentro|44.2|261126|0|
+~T|C06#|Como el caso 5 pero P06 no tiene unidad. Presto v1: partida, 44,20. BC3visor la toma por capítulo.|
+~C|P06||Partida sin unidad con un componente medido dentro|22.1|261126|0|
+~D|P06|MAT01\1\1\MAT02\1\1.05\MO01\1\0.5\|
+~D|C06#|P06\1\2\|
+~M|C06#\P06|6\1\|2|\\2\\\\|
+~M|P06\MAT02|6\1\2\|1.05|\Desglose del rendimiento de la placa\1.05\\\\|
+~C|C07#||CASO 7: partidas sin descomposición ni medición|150|261126|0|
+~T|C07#|P07A: alzada con rendimiento 0 (como 999.0016C de Costitx). P07B: cantidad 3 solo en la descomposición del capítulo, sin medición. Importe esperado 0 + 150.|
+~C|P07A|PA|Partida alzada sin descomposición ni medición (rendimiento 0)|150|261126|0|
+~C|P07B|ud|Partida sin descomposición ni medición; cantidad solo en la descomposición del capítulo|50|261126|0|
+~D|C07#|P07A\1\0\P07B\1\3\|
+~C|C08#||CASO 8: partida reutilizada (rama A, 10)|240|261126|0|
+~T|C08#|P08 está en C08# (10) y en C09# (20). Dentro de P08 la placa MAT02 tiene dos mediciones distintas según la rama (2 y 3) y rendimiento 2. Mirar dentro de P08 qué rendimiento y qué líneas conserva Presto.|
+~C|C09#||CASO 9: la misma partida reutilizada (rama B, 20)|480|261126|0|
+~T|C09#|Segunda rama de P08. Ver el texto del caso 8.|
+~C|P08|m|Partida reutilizada con componente medido distinto según la rama|24|261126|0|
+~D|P08|MAT01\1\1\MO01\1\0.5\MAT02\1\2\|
+~D|C08#|P08\1\10\|
+~D|C09#|P08\1\20\|
+~M|C08#\P08|8\1\|10|\Rama A\10\\\\|
+~M|C09#\P08|9\1\|20|\Rama B\20\\\\|
+~M|P08\MAT02|8\1\3\|2|\Componente en la rama A\2\\\\|
+~M|P08\MAT02|9\1\3\|3|\Componente en la rama B\3\\\\|
+~C|C10#||CASO 10: fórmulas en la medición (tipo 3)|380|261126|0|
+~T|C10#|Línea 1: a*b*1.5 con a=2 b=3 da 9. Línea 2 sin fórmula: sigue valiendo la anterior, a=1 b=4 da 6. Línea 3: (a+b)*2 con a=1 b=1 da 4. Total 19. Presto v1: 19.|
+~C|P10|m2|Partida medida con fórmulas|20|261126|0|
+~D|P10|MAT01\1\1\MO01\1\0.5\|
+~D|C10#|P10\1\19\|
+~M|C10#\P10|10\1\|19|3\a*b*1.5\2\3\\\\Sigue valiendo la fórmula anterior\1\4\\\3\(a+b)*2\1\1\\\|
+~C|C11#||CASO 11: factores con más decimales que el registro K|459.6|261126|0|
+~T|C11#|P11A: unidades 0,045 x 405,12. P11B: altura 0,0475 x 100. Líneas, medición y descomposición dicen lo mismo (18,23 y 4,75), así que este caso solo no decide nada: ver los casos 13 a 15.|
+~C|P11A|m|Unidades con 3 decimales|20|261126|0|
+~D|P11A|MAT01\1\1\MO01\1\0.5\|
+~C|P11B|m|Altura con 4 decimales|20|261126|0|
+~D|P11B|MAT01\1\1\MO01\1\0.5\|
+~D|C11#|P11A\1\18.23\P11B\1\4.75\|
+~M|C11#\P11A|11\1\|18.23|\Unidades 0,045\0.045\405.12\\\|
+~M|C11#\P11B|11\2\|4.75|\Altura 0,0475\1\100\\0.0475\|
+~C|C12#||CASO 12: la descomposición de este capítulo lo nombra sin #|40|261126|0|
+~T|C12#|El concepto es C12# pero su descomposición y su medición dicen C12, sin #. La norma lo permite. Presto v1: los une.|
+~C|P12|m|Partida de un capítulo nombrado sin #|20|261126|0|
+~D|P12|MAT01\1\1\MO01\1\0.5\|
+~D|C12|P12\1\2\|
+~M|C12\P12|12\1\|2|\\2\\\\|
+~C|C13#||CASO 13: líneas sin redondear dan 18,23 pero se declara 20,26|405.2|261126|0|
+~T|C13#|La línea es 0,045 x 405,12 (18,23 sin redondear; 20,26 redondeando cada factor a 2 decimales). Medición y descomposición declaran 20,26. Si Presto enseña 18,23 recalcula sin redondear; si enseña 20,26 respeta lo declarado.|
+~C|P13|m|Medición declarada como si se hubieran redondeado los factores|20|261126|0|
+~D|P13|MAT01\1\1\MO01\1\0.5\|
+~D|C13#|P13\1\20.26\|
+~M|C13#\P13|13\1\|20.26|\Unidades 0,045\0.045\405.12\\\|
+~C|C14#||CASO 14: las líneas dan 10 pero se declara 12|240|261126|0|
+~T|C14#|Una línea de 1 x 10, pero medición y descomposición declaran 12. Si Presto enseña 10 recalcula desde las líneas; si enseña 12 respeta lo declarado.|
+~C|P14|m|Medición con total declarado distinto de sus líneas|20|261126|0|
+~D|P14|MAT01\1\1\MO01\1\0.5\|
+~D|C14#|P14\1\12\|
+~M|C14#\P14|14\1\|12|\Una línea de 10\1\10\\\|
+~C|C15#||CASO 15: la medición dice 10 y la descomposición dice 7|200|261126|0|
+~T|C15#|Las líneas y el total de la medición dan 10, pero la descomposición del capítulo dice 7. ¿Cuál usa Presto?|
+~C|P15|m|Medición y descomposición que no coinciden|20|261126|0|
+~D|P15|MAT01\1\1\MO01\1\0.5\|
+~D|C15#|P15\1\7\|
+~M|C15#\P15|15\1\|10|\Una línea de 10\1\10\\\|
