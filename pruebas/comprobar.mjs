@@ -136,17 +136,17 @@ const MEDIR = new vm.Script(String.raw`(function (buf) {
 
   // Mediciones: total de las líneas (totalMedicion) contra el total del ~M.
   // El visor todavía no lo enseña en pantalla (pendiente 2): se mide igual.
+  // Con el mismo criterio que la pantalla (comprobarMedicion): cuadra si alguna
+  // regla de redondeo conocida reproduce el total declarado de la ~M.
   const medicion = { ok: 0, mal: 0, alzada: 0 };
-  const decMed = K.activo ? K.decCantMed : 3;
   for (const c of P.conceptos.values())
     for (const [padre, med] of c.mediciones) {
       if (!med.lineas.length) { medicion.alzada++; continue; }
       if (String(med.totalRaw).trim() === '') continue;
-      const calc = redondea(totalMedicion(med), decMed);
-      const decl = redondea(toNum(med.totalRaw), decMed);
-      if (calc.toFixed(decMed) === decl.toFixed(decMed)) medicion.ok++;
+      const r = comprobarMedicion(med, med.totalRaw);
+      if (r.cuadra) medicion.ok++;
       else { medicion.mal++; det.medicion.push({ cod: c.codigo, padre, resumen: c.resumen, unidad: c.unidad,
-                                                  archivo: toNum(med.totalRaw), calc, lineas: med.lineas.length }); }
+                                                  archivo: toNum(med.totalRaw), calc: r.valor, lineas: med.lineas.length }); }
     }
 
   return {

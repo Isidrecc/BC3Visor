@@ -27,7 +27,7 @@ button{cursor:pointer;font-family:inherit}
 .tree-panel{width:62%;min-width:480px;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
 .detail-panel{flex:1;overflow-y:auto;padding:20px 24px;min-width:380px}
 .tree-scroll{overflow:auto;flex:1}
-.ttable{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;min-width:780px}
+.ttable{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;min-width:870px}
 .ttable thead{position:sticky;top:0;z-index:5}
 .ttable thead th{background:var(--bg-card);color:var(--text-dim);text-align:left;padding:9px 8px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border);user-select:none}
 .ttable thead th.num{text-align:right}
@@ -37,7 +37,7 @@ button{cursor:pointer;font-family:inherit}
 .ttable tbody tr.active td{background:var(--bg-active);box-shadow:inset 3px 0 0 var(--accent)}
 .ttable .num{text-align:right;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:11px;font-variant-numeric:tabular-nums}
 .ttable .cod{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:11px;color:var(--text-dim)}
-.col-cod{width:100px}.col-ud{width:42px}.col-cant{width:76px}.col-precio{width:88px}.col-calc{width:92px}.col-imp{width:108px}
+.col-cod{width:100px}.col-ud{width:42px}.col-cant{width:76px}.col-med{width:86px}.col-precio{width:88px}.col-calc{width:92px}.col-imp{width:108px}
 /* Celdas de valor CALCULADO: verde si cuadra con lo que declara el archivo,
    rojo si no. Sin color cuando el archivo no declara nada que comparar. */
 .calc{display:inline-block;padding:1px 5px;border-radius:3px}
@@ -119,6 +119,7 @@ button{cursor:pointer;font-family:inherit}
         <th class="col-resumen">Descripción</th>
         <th class="col-ud">Ud</th>
         <th class="num col-cant">Cantidad</th>
+        <th class="num col-med" title="Recalculada desde las líneas de medición; en verde si coincide con la cantidad declarada">Medición calculada</th>
         <th class="num col-precio">Precio archivo</th>
         <th class="num col-calc">Precio calculado</th>
         <th class="num col-imp">Importe calculado (con CI)</th>
@@ -650,30 +651,126 @@ function calcularPrecios(){
 }
 
 // ---- Mediciones ------------------------------------------------------------
-// Presto NO suma los parciales en crudo: redondea CADA factor antes de
-// multiplicar (uds→DN, dimensiones→DD), el parcial a DSP y el total a DS.
-// Un factor a 0 es neutro: una línea «5 / 0 / 0 / 0» mide 5, no 0.
-function parcialLinea(ln){
-  const factores=[[toNum(ln.nRaw),K.decNum],[toNum(ln.lRaw),K.decDim],
-                  [toNum(ln.aRaw),K.decDim],[toNum(ln.hRaw),K.decDim]];
-  if(!K.activo){
-    let p=1, alguno=false;
-    for(const [v] of factores) if(v!==0){ p*=v; alguno=true; }
-    return alguno?p:0;
-  }
-  let acc={m:1n,e:0}, alguno=false;
-  for(const [v,dec] of factores)
-    if(v!==0){ acc=decMul(acc,decRound(decFrom(v),dec)); alguno=true; }
-  return alguno?decNum(decRound(acc,K.decParcial)):0;
+// La medición recalculada desde las líneas NO entra en el importe (que usa la
+// cantidad declarada, ver cantidadImporte): es una comprobación, y se enseña al
+// lado de la declarada en verde o en rojo. Reglas, comprobadas con Presto 8.8 y
+// con los presupuestos de prueba (CLAUDE.md, «Medición recalculada»):
+//   · las DIMENSIONES (longitud, anchura, altura) se redondean a DD antes de
+//     multiplicar; las UNIDADES no (0,0475 de altura pasa a 0,05; 0,045
+//     unidades se quedan así). El parcial va a DSP y el total a DS.
+//   · un factor a 0 o vacío es neutro: una línea «5 / 0 / 0 / 0» mide 5, no 0.
+//   · las líneas de tipo 1 y 2 son subtotales: se enseñan, no suman.
+//   · tipo 3: el comentario es una fórmula con a b c d (las cuatro columnas) y
+//     p (pi). Según la norma vale para su línea y las siguientes hasta otra
+//     fórmula, y no se multiplica por nada más. TCQ lo hace así (Girona: 9 de 10
+//     al milésimo); Presto 8.8 la aplica solo a su línea.
+
+// Evaluador de fórmulas de medición. Propio, sin eval ni Function: un BC3 no
+// puede ejecutar código. Gramática: suma := prod (('+'|'-') prod)* ;
+// prod := un (('*'|'/') un)* ; un := ('-'|'+') un | pot ; pot := prim ('^' un)? ;
+// prim := número | a | b | c | d | p | '(' suma ')'. Devuelve NaN si no es válida.
+function evaluarFormula(expr,v){
+  const s=String(expr||'').replace(/\s+/g,'').toLowerCase();
+  let i=0;
+  const fallo=()=>{ throw 0; };
+  const prim=()=>{
+    const ch=s[i];
+    if(ch==='('){ i++; const x=suma(); if(s[i]!==')') fallo(); i++; return x; }
+    if('abcd'.includes(ch) && ch){ i++; return v[ch]; }
+    if(ch==='p'){ i++; return Math.PI; }
+    const m=/^\d+(?:[.,]\d*)?|^[.,]\d+/.exec(s.slice(i));
+    if(!m) fallo();
+    i+=m[0].length; return parseFloat(m[0].replace(',','.'));
+  };
+  const un=()=>{
+    if(s[i]==='-'){ i++; return -un(); }
+    if(s[i]==='+'){ i++; return un(); }
+    const b=prim();
+    if(s[i]==='^'){ i++; return Math.pow(b,un()); }
+    return b;
+  };
+  const prod=()=>{
+    let x=un();
+    while(s[i]==='*'||s[i]==='/'){ const o=s[i++]; const y=un(); x=o==='*'?x*y:x/y; }
+    return x;
+  };
+  const suma=()=>{
+    let x=prod();
+    while(s[i]==='+'||s[i]==='-'){ const o=s[i++]; const y=prod(); x=o==='+'?x+y:x-y; }
+    return x;
+  };
+  if(!s) return NaN;
+  try{ const r=suma(); return (i===s.length && isFinite(r))?r:NaN; }
+  catch(e){ return NaN; }
 }
 
-function totalMedicion(med){
+// Cómo redondea cada programa los factores de una línea antes de multiplicar.
+// El BC3 no dice cuál usó, así que la comprobación acepta cualquiera de estas.
+// La primera es la principal: la que se enseña cuando ninguna cuadra.
+const REGLAS_MEDICION=[
+  {unidades:false, dimensiones:true,  nombre:'como Presto 8.8: dimensiones redondeadas, unidades no'},
+  {unidades:true,  dimensiones:true,  nombre:'redondeando también las unidades, como Menfis 8'},
+  {unidades:false, dimensiones:false, nombre:'sin redondear ningún factor, como Presto 21'}];
+
+// Valor de cada línea de una ~M, en orden: {valor, formula, heredada, subtotal}.
+// valor NaN = fórmula que no se puede evaluar. `regla`: una de REGLAS_MEDICION.
+function parcialesMedicion(med,regla=REGLAS_MEDICION[0]){
+  const out=[];
+  let vigente=null;
+  const dim=x=>K.activo&&regla.dimensiones?redondea(toNum(x),K.decDim):toNum(x);
+  const uds=x=>K.activo&&regla.unidades?redondea(toNum(x),K.decNum):toNum(x);
+  for(const ln of med.lineas){
+    const t=ln.tipoRaw;
+    // Subtotales (tipo 1 y 2): la norma dice que sus números no cuentan, pero
+    // Presto 11 escribe líneas de tipo 1 con unidades y las cuenta (Anexo
+    // 66.03.01: 128 mediciones). Sin números valen 0; con números, como una
+    // línea normal.
+    const conDatos=[ln.nRaw,ln.lRaw,ln.aRaw,ln.hRaw].some(x=>toNum(x)!==0);
+    if((t==='1'||t==='2') && !conDatos){ out.push({valor:0,formula:null,heredada:false,subtotal:true}); continue; }
+    if(t==='3' && ln.comentario) vigente=ln.comentario;
+    if(vigente!==null && (t==='3' || t==='')){
+      const r=evaluarFormula(vigente,{a:uds(ln.nRaw),b:dim(ln.lRaw),c:dim(ln.aRaw),d:dim(ln.hRaw)});
+      out.push({valor:isFinite(r)?(K.activo?redondea(r,K.decParcial):r):NaN,
+                formula:vigente, heredada:t!=='3'});
+      continue;
+    }
+    // Línea normal: producto exacto de los factores no nulos.
+    const fs=[uds(ln.nRaw),dim(ln.lRaw),dim(ln.aRaw),dim(ln.hRaw)].filter(x=>x!==0);
+    if(!fs.length){ out.push({valor:0,formula:null,heredada:false}); continue; }
+    let acc={m:1n,e:0};
+    for(const x of fs) acc=decMul(acc,decFrom(x));
+    out.push({valor:K.activo?decNum(decRound(acc,K.decParcial)):fs.reduce((a,b)=>a*b,1),
+              formula:null, heredada:false});
+  }
+  return out;
+}
+
+function totalMedicion(med,regla=REGLAS_MEDICION[0]){
   if(!med) return 0;
   // Sin líneas de detalle es una partida alzada: vale el total declarado.
   if(!med.lineas.length) return toNum(med.totalRaw);
-  let suma=0;
-  for(const ln of med.lineas) suma+=parcialLinea(ln);
-  return K.activo?redondea(suma,K.decCantMed):suma;
+  let suma=DEC_CERO;
+  for(const p of parcialesMedicion(med,regla)){
+    if(!isFinite(p.valor)) return NaN;
+    suma=decAdd(suma,decFrom(p.valor));
+  }
+  return K.activo?decNum(decRound(suma,K.decCantMed)):decNum(suma);
+}
+
+// Comprueba una medición contra un valor declarado: cuadra si alguna de las
+// reglas conocidas lo reproduce al último decimal. Devuelve {valor, cuadra,
+// regla}; si ninguna cuadra, el valor de la regla principal.
+function comprobarMedicion(med,declaradoRaw){
+  const dec=K.activo?K.decCantMed:3;
+  const decl=String(declaradoRaw||'').trim();
+  const principal=totalMedicion(med);
+  if(decl==='' || !isFinite(principal)) return {valor:principal, cuadra:null, regla:null};
+  const objetivo=redondea(toNum(decl),dec).toFixed(dec);
+  for(const regla of REGLAS_MEDICION){
+    const v=regla===REGLAS_MEDICION[0]?principal:totalMedicion(med,regla);
+    if(isFinite(v) && redondea(v,dec).toFixed(dec)===objetivo) return {valor:v, cuadra:true, regla};
+  }
+  return {valor:principal, cuadra:false, regla:REGLAS_MEDICION[0]};
 }
 function medicionCalculada(cod,padre){
   const c=get(cod);
@@ -902,11 +999,35 @@ function cantidadDeclarada(cod,padre){
   return {raw:'',origen:''};
 }
 
+// "Medición calculada": la suma de las líneas de su ~M, contra la cantidad que
+// declara el archivo (la de la columna de al lado, la que usa el importe). Solo
+// hay algo que enseñar si la partida tiene líneas de medición en este padre.
+function medDeFila(cod,padre,c,cant){
+  const med=c.mediciones.get(padre)||c.mediciones.get('__sin_padre__');
+  if(!med || !med.lineas.length) return '';
+  return celdaMedicion(med, cant.raw, 'Medición recalculada desde sus líneas');
+}
+// Celda de medición recalculada: verde si alguna regla de redondeo conocida
+// reproduce lo declarado (y dice cuál), rojo si ninguna.
+function celdaMedicion(med,declaradoRaw,queEs){
+  const dec=K.activo?K.decCantMed:3;
+  const r=comprobarMedicion(med,declaradoRaw);
+  if(!isFinite(r.valor))
+    return `<span class="calc calc-mal" title="Alguna fórmula de sus líneas no se puede evaluar">?</span>`;
+  const txt=fmtCalc(r.valor,dec);
+  if(r.cuadra===null)
+    return `<span class="calc calc-solo" title="${esc(queEs)} — el archivo no declara un valor con el que compararlo">${esc(txt)}</span>`;
+  const t=r.cuadra
+    ? `${queEs}. Coincide con lo que declara el archivo (${fmtNum(declaradoRaw)}) ${r.regla.nombre}.`
+    : `${queEs}. NO coincide: el archivo declara ${fmtNum(declaradoRaw)} y sale ${txt} ${REGLAS_MEDICION[0].nombre}; ninguna otra regla de redondeo conocida lo reproduce.`;
+  return `<span class="calc ${r.cuadra?'calc-ok':'calc-mal'}" title="${esc(t)}">${esc(txt)}</span>`;
+}
+
 function renderTree(){
   const tb=document.getElementById('treeBody');
   tb.innerHTML='';
   const raiz=get(P.raiz);
-  if(!raiz){ tb.innerHTML='<tr><td colspan="7" style="color:var(--text-muted);padding:16px">No se encontró la estructura del presupuesto</td></tr>'; return; }
+  if(!raiz){ tb.innerHTML='<tr><td colspan="8" style="color:var(--text-muted);padding:16px">No se encontró la estructura del presupuesto</td></tr>'; return; }
   for(const h of raiz.hijos) filaNodo(tb,h.codigo,P.raiz,0);
 }
 
@@ -930,6 +1051,7 @@ function filaNodo(tbody,cod,padre,nivel){
       `${esc(c.resumen)}</td>`+
     `<td class="col-ud">${esc(c.unidad)}</td>`+
     `<td class="num col-cant">${esCap?'':celdaNum(cant.raw)}</td>`+
+    `<td class="num col-med">${esCap?'':medDeFila(cod,padre,c,cant)}</td>`+
     `<td class="num col-precio">${celdaNum(c.precioRaw)}</td>`+
     `<td class="num col-calc">${calcDeFila(cod,padre,c)}</td>`+
     `<td class="num col-imp">${importeDeFila(cod,padre,c)}</td>`;
@@ -1051,23 +1173,31 @@ function renderDetail(cod,padre){
   const med=c.mediciones.get(padre)||c.mediciones.get('__sin_padre__');
   if(med){
     h+=`<div class="detail-section"><h3>Mediciones <span class="hint">registro ~M en ${esc(padre||'(sin padre)')}</span></h3>`;
+    const dm=K.activo?K.decCantMed:3, dpar=K.activo?K.decParcial:3;
     if(med.lineas.length){
+      const parciales=parcialesMedicion(med);
       h+=`<table class="dtable"><thead><tr>
         <th style="width:36px"></th><th>Comentario</th>
         <th class="num">N</th><th class="num">Longitud</th><th class="num">Anchura</th><th class="num">Altura</th>
+        <th class="num" title="Calculado por el visor: unidades tal cual, dimensiones redondeadas, fórmulas evaluadas">Parcial</th>
       </tr></thead><tbody>`;
-      for(const ln of med.lineas){
-        const t=ln.tipoRaw;
-        const marca=t==='1'?'Σp':t==='2'?'Σa':t==='3'?'fx':'';
+      med.lineas.forEach((ln,i)=>{
+        const t=ln.tipoRaw, p=parciales[i];
+        const marca=t==='1'?'Σp':t==='2'?'Σa':t==='3'?'fx':p.heredada?'fx↓':'';
+        const titulo=t==='3'?`Fórmula: ${p.formula}`:p.heredada?`Sin fórmula propia: usa la de la línea anterior (${p.formula}), como dice la norma`:`Línea de tipo ${t}`;
+        const parcial=p.subtotal?'':!isFinite(p.valor)
+          ? `<span class="calc calc-mal" title="La fórmula ${esc(p.formula)} no se puede evaluar">?</span>`
+          : `<span class="calc calc-solo" title="Calculado por el visor">${esc(fmtCalc(p.valor,dpar))}</span>`;
         h+=`<tr>
-          <td>${marca?`<span class="tt-badge badge-aux" title="Línea de tipo ${esc(t)}">${marca}</span>`:''}</td>
+          <td>${marca?`<span class="tt-badge badge-aux" title="${esc(titulo)}">${marca}</span>`:''}</td>
           <td>${esc(ln.comentario)}</td>
           <td class="num">${celdaNum(ln.nRaw)}</td>
           <td class="num">${celdaNum(ln.lRaw)}</td>
           <td class="num">${celdaNum(ln.aRaw)}</td>
           <td class="num">${celdaNum(ln.hRaw)}</td>
+          <td class="num">${parcial}</td>
         </tr>`;
-      }
+      });
       h+=`</tbody></table>`;
     }else{
       h+=`<div class="detail-text" style="font-style:italic">Sin líneas de detalle (partida alzada: vale el total declarado).</div>`;
@@ -1075,7 +1205,14 @@ function renderDetail(cod,padre){
     h+=`<div class="medicion-total"><span class="dp-lbl">Total declarado (~M)</span>
       <span class="dp-val" title="En el archivo: ${esc(med.totalRaw)}">${med.totalRaw!==''?esc(fmtNum(med.totalRaw)):'—'} ${esc(c.unidad)}</span></div>`;
     if(med.lineas.length)
-      h+=`<div class="dp-nota">El total es el declarado en el archivo, no la suma de las líneas.</div>`;
+      h+=`<div class="medicion-total" style="border-top:none;margin-top:0"><span class="dp-lbl">Suma de las líneas</span>
+        <span class="dp-val">${celdaMedicion(med,med.totalRaw,'Suma de las líneas de medición')} ${esc(c.unidad)}</span></div>`;
+    // La cantidad con la que se calcula el importe es la del ~D (la norma exige
+    // que coincida con el total de la ~M). Si no coinciden, se dice.
+    const cd=cantidadDeclarada(cod,padre);
+    if(cd.origen==='~D' && med.totalRaw!=='' && toNum(cd.raw)!==toNum(med.totalRaw))
+      h+=`<div class="dp-nota" style="color:var(--red)">El ~D del padre declara ${esc(fmtNum(cd.raw))} y la ~M ${esc(fmtNum(med.totalRaw))}: el importe usa la del ~D, como Presto.</div>`;
+    h+=`<div class="dp-nota">El importe usa la cantidad declarada; la suma de las líneas es una comprobación.</div>`;
     h+=`</div>`;
   }
 
