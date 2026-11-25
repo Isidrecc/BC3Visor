@@ -68,8 +68,10 @@ omitido en las referencias de `~D` y `~M` (Presto), raíz sintética cuando no h
 concepto `##` (Presto 8.8), y clasificación capítulo/partida por tipo FIEBDC y,
 en su defecto, por estructura.
 
-En `EJEMPLOS/` hay cinco presupuestos reales para probarlo, de Presto 8.8 a
-Presto 21. En `FIEBDC/` está la especificación oficial (2016, 2020 y 2024) con
+Se prueba contra 29 presupuestos reales de Presto (de la 8.8 a la 25), TCQ,
+Arquímedes, Menfis e Istram, con un banco de pruebas que compara cada cambio con
+el resultado anterior: ver [`PROTOCOLO-PRUEBAS.md`](PROTOCOLO-PRUEBAS.md). Esos
+presupuestos son de clientes y no están en el repositorio. En `FIEBDC/` está la especificación oficial (2016, 2020 y 2024) con
 sus anexos.
 
 ## Abrir un BC3 sin arrastrarlo (para desarrollar)
@@ -83,7 +85,7 @@ una terminal, dentro de la carpeta del proyecto,
 python3 -m http.server 8741 --bind 127.0.0.1
 ```
 
-y en el navegador, `http://127.0.0.1:8741/bc3visor.html?file=EJEMPLOS/prueba.bc3`.
+y en el navegador, `http://127.0.0.1:8741/bc3visor.html?file=PRESUPUESTOS-PRUEBA/prueba.bc3`.
 La terminal se queda abierta mientras trabajas; **Ctrl+C** para parar.
 
 Tres detalles que ahorran un rato de desconcierto:

@@ -36,7 +36,7 @@ delata.**
 ## El cálculo replica a Presto, vía `~K`
 
 Implementado y verificado contra BC3manager: mismo PEM al céntimo en los cinco
-archivos de `EJEMPLOS/`. Nada de constantes en el código — los decimales y los
+presupuestos de prueba originales (todos de Presto). Nada de constantes en el código — los decimales y los
 coeficientes salen del `~K` del propio archivo. Si no hay `~K`, `K.activo` queda
 en `false` y se calcula a precisión alta sin redondear.
 
@@ -62,8 +62,9 @@ Tres cosas que cuestan caro descubrir solas:
   `8,86`, y muestra `9,39` con el 6% de CI encima). Por eso «Precio calculado»
   enseña el CD en las partidas: es lo único comparable con lo que hay en el `~C`.
   El total con CI va en el desglose del panel de detalle.
-  Contrastado sobre las 681 partidas con descomposición de `EJEMPLOS/`: **ni una
-  sola trae el CI en el `~C`**. Lo mismo dice BC3manager, que compara el `~C`
+  Contrastado sobre las 681 partidas con descomposición de los cinco presupuestos
+  de prueba originales, todos de Presto: **ni una sola trae el CI en el `~C`**.
+  Ojo: **TCQ sí parece traerlo** (ver pendiente 6). Lo mismo dice BC3manager, que compara el `~C`
   contra el precio recalculado «con CI si es capítulo»
   (`docs/auditoria/spec-script-comparacion.md`).
 - **El `~C` de un capítulo sí lleva el importe con CI** — es la suma de los
@@ -97,7 +98,7 @@ sin exclusión.
 Al exportar el `.pzh` a `.bc3` **esa variable no queda marcada en ningún sitio**,
 así que el archivo no se puede reconstruir: al abrirlo se le aplica el CI a todas
 las partidas y aparece un descuadre. Comprobado exportando con la opción puesta y
-volviendo a abrir en Presto — `EJEMPLOS/…Costitx - SOLID.bc3` y su `v2` tienen
+volviendo a abrir en Presto — el BC3 de Costitx y su `v2` (que ya no está en el juego de pruebas) tienen
 los mismos 120 registros y solo difieren en tres números (los totales de dos
 capítulos y el de la raíz); el presupuesto subió 571,08 € en el viaje de ida y
 vuelta.
@@ -141,33 +142,31 @@ versión anterior del HTML. Recargar forzando (o añadir `?v=N`).
 | `bc3visor.html` | el programa entero |
 | `index.html` | solo redirige a `bc3visor.html` (para que GitHub Pages sirva la raíz); conserva `?file=` |
 | `FIEBDC/` | spec oficial 2016 / 2020 / 2024 + anexos (lector de referencia en C, ejemplo del `~K`). Fuente de verdad del formato |
-| `EJEMPLOS/` | BC3 reales para probar, y `codificacion-precios-SOLID.md` con el sistema de codificación de la base de precios propia |
+| `PRESUPUESTOS-PRUEBA/` | los 29 presupuestos reales con que se prueba el visor, y `codificacion-precios-SOLID.md` con el sistema de codificación de la base de precios propia. **Fuera de git: son de clientes** |
+| `pruebas/comprobar.mjs` | banco de pruebas: ejecuta el código del visor sobre todos los presupuestos y lo compara con la línea base |
+| `PROTOCOLO-PRUEBAS.md` | cómo se comprueba un cambio antes de subirlo, y catálogo de qué cubre cada presupuesto |
 | `VISORES DE INTERNET/` | páginas guardadas de ILoveBC3, OpenBC3, BuildGets y un comparador. Investigación: cómo resuelven la lectura y la interfaz |
 
 ## Probar
 
-Servir la carpeta del proyecto admite `?file=...`, que evita arrastrar el archivo
-en cada recarga:
+**Antes de subir cualquier cambio de `bc3visor.html`, seguir
+[`PROTOCOLO-PRUEBAS.md`](PROTOCOLO-PRUEBAS.md).** `node pruebas/comprobar.mjs`
+ejecuta el visor sobre los 29 presupuestos de `PRESUPUESTOS-PRUEBA/` y lo compara
+con la línea base: nada que salga `PEOR` se sube sin entender por qué. El mismo
+documento tiene el catálogo de qué caso cubre cada presupuesto.
+
+Para mirar un presupuesto en el navegador, servir la carpeta del proyecto admite
+`?file=...`, que evita arrastrar el archivo en cada recarga:
 
 ```bash
 python3 -m http.server 8741 --bind 127.0.0.1
 ```
 
 Y abrir, por ejemplo,
-`http://127.0.0.1:8741/bc3visor.html?file=EJEMPLOS/251101%20-%20Variant%20Alqueria%20Blanca%20-%20CONSELL.bc3`.
+`http://127.0.0.1:8741/bc3visor.html?file=PRESUPUESTOS-PRUEBA/Presto20%20-%20251101%20-%20Variant%20Alqueria%20Blanca%20-%20CONSELL.bc3`.
 
 **Siempre con `--bind 127.0.0.1`**: sin él, `http.server` sirve la carpeta a toda
 la red local, y aquí hay presupuestos reales de clientes.
-
-Los ejemplos cubren a propósito casos distintos. Todos traen raíz `##` y todos
-declaran CI en el `~K` (6%, salvo Bulevar Peguera que lleva 5%):
-
-| Archivo | Qué caso cubre |
-|---|---|
-| Variant Alqueria Blanca | Presto 20.01 / FIEBDC-2016, `~K` con campo 3 completo (precios de partida a 4 decimales) |
-| Nova EBAR Peguera · Bulevar Peguera | Presto 21, el volumen grande |
-| Deposito Porreres · Cami de Santa Rita | Presto 8.8 / FIEBDC-2002: `~K` sin campo 3, alias `#` omitido en `~D` y `~M`, capítulos con precio precalculado |
-| Cami de Santa Rita **v2** | El mismo presupuesto tras ir y volver de Presto. **No es un duplicado: es la prueba** de que `CalcIndAlz` no viaja en el archivo (ver arriba). No borrar |
 
 Verificar siempre contra el archivo crudo con grep. Un valor declarado tiene que
 verse letra a letra como está en el `.bc3`. Un valor calculado se comprueba contra
@@ -191,7 +190,7 @@ línea de medición los factores a 0 cuentan como 1 (una línea «5 / 0 / 0 / 0�
 **1. Las partidas sin `~D` ni `~M` no se pintan.** `clasificarTipos()` las manda
 a `unitario`, y `filaNodo()` solo pinta capítulos y partidas, así que
 desaparecen del árbol. Caso: `999.0016C` («Partida alçada a justificar gestió de
-residus d'excavació») en `EJEMPLOS/…Costitx…`, que cuelga del `~D` del `04#` y
+residus d'excavació») en `PRESUPUESTOS-PRUEBA/…Costitx…`, que cuelga del `~D` del `04#` y
 Presto sí enseña. No afecta a ningún total —rendimiento 0 y sin medición, importe
 0— pero falta una línea del presupuesto. La regla que nos falta es la que usa
 Presto: **lo que cuelga del `~D` de un capítulo es una partida**, tenga o no
@@ -200,7 +199,7 @@ descomposición y medición.
 **2. La medición: la fila no cuadra consigo misma.** La columna «Cantidad»
 enseña el total declarado en el `~M`, pero el importe se calcula con otro número
 —el que sale de sumar las líneas de medición— y en ningún sitio se dice. Caso:
-`211.0020`, el betún del MBC, en `EJEMPLOS/…Costitx…`.
+`211.0020`, el betún del MBC, en `PRESUPUESTOS-PRUEBA/…Costitx…`.
 
 ```
 ~M|02#\211.0020|2\3\|18.23|\MBC tipus AC16 surf\0.045\405.12\\\|
@@ -266,3 +265,35 @@ Esto además desmonta el motivo escrito en el pendiente 2. El archivo de Costitx
 vacía (y entonces vale 2 por defecto) y la segunda declara 2. El redondeo de
 medición que aplicamos no es inventado; lo que está mal es la explicación, no el
 número.
+
+**5. Partidas tomadas por capítulos.** Lo destapó el banco de pruebas. En
+Bulevar Peguera, `VIO.2D160`, `VIOPOS6`, `13.05` y otras son partidas —tienen
+unidad y precio en su `~C`— con una medición propia de algún componente de su
+descomposición:
+
+```
+~C|VIO.2D160|m|PRISMA HORMIGONADO 2D160|43.94|201106|0|
+~M|VIO.2D160\placa|5\7\8\2\|1.05|...
+```
+
+`clasificarTipos()` aplica la regla heredada de BC3manager «si algún hijo tiene
+una `~M` colgando de este concepto, es un capítulo», y las convierte en
+capítulos. Su importe sale entonces de sumar sus componentes (3,18 € donde el
+archivo declara 43,94 €), y los componentes cuentan como conceptos que no se
+pintan. Descuadra 17 de los 39 capítulos de Bulevar. Pista: un concepto con
+unidad no es un capítulo.
+
+**6. Por investigar, según la línea base del 25-11-2026.** Tres grupos de
+precios de partida que no cuadran, sin analizar todavía:
+
+- **TCQ con CI.** En la llar d'infants (CI 10 %) el precio del archivo dividido
+  por el calculado da casi siempre 1,10 (`CAMEXT4G01`: 510,47 frente a 464,06).
+  Todo indica que **TCQ escribe el `~C` de la partida con el CI incluido**, al
+  revés que Presto. Si se confirma, la comparación de precios tiene que saber
+  qué programa generó el archivo.
+- **TCQ sin CI.** En Av. Tarragona (CI 0 %) el calculado sale un 5-6 % por
+  encima del archivo (`A1110024`: 58,59 frente a 62,11). Causa desconocida.
+- **Céntimos en Presto 11 y en el banco de Arquímedes.** Diferencias de 1 a 5
+  céntimos (`D02009`: 187,26 frente a 187,20). Huele a redondeo. Presto 11 no
+  trae campo 3 en el `~K`, así que puede estar ligado al pendiente 4.
+

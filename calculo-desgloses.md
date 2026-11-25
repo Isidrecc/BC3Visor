@@ -5,7 +5,7 @@ obra, materiales, maquinaria. Esa lista es el desglose. Aquí está cómo se lle
 del desglose al precio, y dónde están las trampas.
 
 Todo el documento usa la misma partida, la `542.0001` de
-`EJEMPLOS/260714 - Cami de Santa Rita Costitx - SOLID.bc3`:
+`PRESUPUESTOS-PRUEBA/Presto8.8 - 260714 - Cami de Santa Rita Costitx - SOLID - v1.bc3`:
 
 ```
 ~C|542.0001|t|MBC tipus AC16 surf o bin D (D-12), àrid calcari|90.69|281019|0|
@@ -294,7 +294,7 @@ aplica: `%0700` no tiene prefijo, así que va sobre todas las anteriores;
 `A%AUX00250` solo va sobre las líneas cuyo código empieza por `A`, la mano de
 obra.
 
-La máscara importa mucho: hay 36 líneas con prefijo en `EJEMPLOS/`, todas con
+La máscara importa mucho: hay 36 líneas con prefijo en los cinco presupuestos de prueba originales, todas con
 prefijo `A`, y aplicarlas sobre todo el acumulado en vez de solo sobre la mano de
 obra descuadraba 37 partidas de Nova EBAR y Bulevar.
 

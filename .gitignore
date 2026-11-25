@@ -5,7 +5,9 @@
 # ---------------------------------------------------------------------------
 
 # Presupuestos de clientes y fuentes de Presto
-EJEMPLOS/
+PRESUPUESTOS-PRUEBA/
+*.tcq
+*.TCQ
 *.bc3
 *.BC3
 *.pzh
