@@ -139,6 +139,7 @@ versión anterior del HTML. Recargar forzando (o añadir `?v=N`).
 | | |
 |---|---|
 | `bc3visor.html` | el programa entero |
+| `index.html` | solo redirige a `bc3visor.html` (para que GitHub Pages sirva la raíz); conserva `?file=` |
 | `FIEBDC/` | spec oficial 2016 / 2020 / 2024 + anexos (lector de referencia en C, ejemplo del `~K`). Fuente de verdad del formato |
 | `EJEMPLOS/` | BC3 reales para probar, y `codificacion-precios-SOLID.md` con el sistema de codificación de la base de precios propia |
 | `VISORES DE INTERNET/` | páginas guardadas de ILoveBC3, OpenBC3, BuildGets y un comparador. Investigación: cómo resuelven la lectura y la interfaz |
