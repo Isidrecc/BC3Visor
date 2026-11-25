@@ -379,6 +379,24 @@ function regM(c){
 
 // ---- Normalizaciones post-lectura (mismas rarezas que trata BC3Manager) ----
 function resolverAliasHash(){
+  // El padre de un ~D (y de una ~M) puede venir sin la '#' que lleva su ~C: la
+  // norma solo la exige en el ~C. ~C|C12#|… y ~D|C12|… son el mismo concepto, y
+  // regD() habrá creado un 'C12' sin ficha con los hijos. Se une con su ficha.
+  // TCQ escribe así las clasificaciones de residuos (Girona, ZZ18960). Solo si
+  // el concepto sin '#' no tiene ficha propia: dos conceptos reales que solo se
+  // distinguen por la '#' no se mezclan.
+  for(const c of [...P.conceptos.values()]){
+    if(c.codigo.endsWith('#') || !c.hijos.length) continue;
+    if(c.resumen || c.precioRaw || c.unidad) continue;
+    const dest=get(c.codigo+'#')||get(c.codigo+'##');
+    if(!dest) continue;
+    dest.hijos.push(...c.hijos);
+    for(const [k,v] of c.mediciones) if(!dest.mediciones.has(k)) dest.mediciones.set(k,v);
+    if(c.texto && !dest.texto) dest.texto=c.texto;
+    P.conceptos.delete(c.codigo);
+    for(const o of P.conceptos.values())
+      for(const h of o.hijos) if(h.codigo===c.codigo) h.codigo=dest.codigo;
+  }
   // Presto emite referencias sin el # final aunque el ~C lo lleve.
   const aliased=new Set();
   for(const con of P.conceptos.values()){
