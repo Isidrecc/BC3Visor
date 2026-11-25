@@ -1,0 +1,29 @@
+# ---------------------------------------------------------------------------
+# Se versiona el programa y su documentación. El material de trabajo no:
+# hay presupuestos reales de clientes, specs con copyright y código ajeno.
+# Todo esto sigue en la carpeta (Dropbox); solo queda fuera de git.
+# ---------------------------------------------------------------------------
+
+# Presupuestos de clientes y fuentes de Presto
+EJEMPLOS/
+*.bc3
+*.BC3
+*.pzh
+*.bak
+
+# Spec oficial FIEBDC (copyright de FIEBDC)
+FIEBDC/
+
+# Páginas guardadas de visores de terceros (código ajeno)
+VISORES DE INTERNET/
+
+# Despliegue: copia generada de bc3visor.html y caché de Firebase
+dist/
+.firebase/
+
+# Sistema y editores
+.DS_Store
+Thumbs.db
+desktop.ini
+.obsidian/
+.claude/settings.local.json
