@@ -49,6 +49,14 @@ en `false` y se calcula a precisión alta sin redondear.
   `DRC DC _ DFS DRS _ DUO DI DES DN DD DS DSP DEC` — **con dos huecos vacíos**.
   Trae además los decimales de medición (DN, DD, DS, DSP) que el campo 1 no
   tiene. Sobrescribe al campo 1.
+- **DN y DD** (decimales de las unidades y de las dimensiones de una línea de
+  medición) se leen de los dos sitios: las dos primeras casillas del campo 1,
+  en el orden de la norma (pendiente 4), y las posiciones 9 y 10 del campo 3.
+  Vacío o negativo, ese factor no se redondea; si los dos campos se
+  contradicen, tampoco. Es el caso de Presto, que deja DN vacío en el campo 1 y
+  escribe 2 en el campo 3, y no redondea las unidades: Alqueria `332.0040` mide
+  con `-3.1415` (π) y Portocolom `004333` con `-0.006`, y el total que escribe
+  Presto solo sale así.
 
 Cadena de redondeo de la descomposición: precio básico a DES → subtotal a DI →
 precio de partida a DUO → CI encima → importe = precio × **cantidad declarada** →
@@ -270,9 +278,14 @@ descomposición, como las tasas de Andratx, y sigue aplicándoles el CI.
   tal cual los totales que no cuadraban con sus líneas, y en el caso 15 (`~M` 10,
   `~D` 7) usó el 7. Solo recalculó la medición que se abrió en pantalla.
 - **Al recalcular, Presto 8.8 redondea las dimensiones pero no las unidades**, y
-  al importar reescribe la dimensión ya redondeada (0,0475 → 0,05). Presto 21 no
-  redondeó (Nova EBAR: 333,14 frente a los 335,26 de Presto 8.8) y Menfis 8
-  redondea también las unidades. El BC3 no dice qué regla usó.
+  al importar reescribe la dimensión ya redondeada (0,0475 → 0,05). Es lo que
+  dice su `~K`: DN vacío en el campo 1, DD = 2. Al importar no adopta el `~K` del
+  archivo: exportó el caso 11 con su propia configuración (DN vacío), aunque el
+  BC3 de prueba declaraba DN = 2. Menfis 8 y TCQ declaran DN y redondean también
+  las unidades. La única medición de los 29 presupuestos que no reproduce su
+  propio `~K` es `GMTGRF02` de Nova EBAR (y de Andratx, que es el mismo
+  proyecto): dimensiones de 3 decimales con DD = 2, declara 333,14, sin
+  redondear, y Presto 8.8 la recalcula a 335,26. Sale en rojo, y hace bien.
 - **Las fórmulas** (líneas de tipo 3) valen hasta la siguiente línea que defina
   otra, y no se multiplican por las unidades (pág. 21). TCQ lo hace así (Girona,
   9 de 10 al milésimo); Presto 8.8 aplica cada fórmula solo a su línea.
@@ -295,12 +308,13 @@ los presupuestos de prueba).
 panel de detalle): la suma de las líneas de la `~M`, contra la cantidad
 declarada. Es solo una comprobación, en verde o en rojo; no entra en el importe.
 
-- **Redondeo de los factores.** El BC3 no dice qué regla usó el programa, así que
-  cuadra si la reproduce alguna conocida (`REGLAS_MEDICION`): dimensiones a DD y
-  unidades sin redondear (Presto 8.8, la principal, la que se enseña si ninguna
-  cuadra); también las unidades a DN (Menfis 8); o ningún factor (Presto 21). El
-  rojo queda para lo que no reproduce ninguna: eso sí es un archivo que no cuadra
-  consigo mismo. El parcial va a DSP y el total a DS.
+- **Redondeo de los factores**: el que pide el `~K`, sin tolerancias. Las
+  dimensiones a DD y las unidades a DN; lo que el `~K` no declara, o declara de
+  forma contradictoria entre el campo 1 y el 3, no se redondea (ver «El cálculo
+  replica a Presto»). El tooltip dice con qué decimales se ha calculado. El
+  parcial va a DSP y el total a DS. Hubo una versión que aceptaba cualquiera de
+  tres «reglas por programa» (Presto 8.8, Menfis 8, Presto 21): eran el `~K` de
+  cada archivo mal leído, y la de Presto 21 salía de una sola medición.
 - **Factores a 0 o vacíos** son neutros: una línea «5 / 0 / 0 / 0» mide 5.
 - **Fórmulas** (tipo 3): `evaluarFormula()`, un intérprete propio sin `eval` ni
   `Function`, con `a b c d` (las cuatro columnas), `p` (π), `+ - * / ^` y
@@ -347,7 +361,7 @@ verificó empíricamente. En FIEBDC-3/2024 sí está, y explícito:
 dimensiones, total de medición, rendimiento, importe de línea, suma de costes
 directos, precio total del concepto (CD+CI) e importe de medición × precio.
 `regK()` lo reparte de otra manera y no coincide en cuatro de las ocho
-posiciones. En los cinco ejemplos da igual —todas las cifras valen 2 salvo la del
+posiciones (DN y DD ya se leen en el orden de la norma; el resto, todavía no). En los cinco ejemplos da igual —todas las cifras valen 2 salvo la del
 rendimiento, que las dos lecturas colocan en el mismo sitio— pero con un archivo
 que use valores distintos por parámetro leeríamos mal. El campo 3 sí lo leemos
 bien: verificado casilla por casilla contra el presupuesto oficial calculado de
@@ -356,9 +370,8 @@ posiciones que ese PDF anota.
 
 Esto además desmonta el motivo escrito en el pendiente 2. El archivo de Costitx
 **sí declara DN y DD**: son las dos primeras cifras del campo 1. La primera va
-vacía (y entonces vale 2 por defecto) y la segunda declara 2. El redondeo de
-medición que aplicamos no es inventado; lo que está mal es la explicación, no el
-número.
+vacía (las unidades no se redondean) y la segunda declara 2. El redondeo de
+medición que aplicamos sale de ahí.
 
 **5. ~~Partidas tomadas por capítulos~~ — HECHO.** Lo destapó el banco de pruebas. En
 Bulevar Peguera, `VIO.2D160`, `VIOPOS6`, `13.05` y otras son partidas —tienen

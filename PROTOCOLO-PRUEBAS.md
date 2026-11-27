@@ -100,7 +100,7 @@ En pantalla, cada presupuesto sale en una línea:
 | `precios` | Partidas con descomposición cuyo precio calculado cuadra con el `~C` (cuadran / total). Cada partida cuenta una vez | Más alto |
 | `capítulos` | Capítulos cuyo importe calculado cuadra con el `~C` | Más alto |
 | `PEM` | Veredicto del PEM: `ok`, `mal`, o `solo` si el archivo no declara con qué compararlo | `ok` |
-| `medición` | Mediciones con líneas cuya suma reproduce el total de la `~M` con alguna de las reglas de redondeo conocidas (la columna «Medición calculada» del visor) | Más alto |
+| `medición` | Mediciones con líneas cuya suma reproduce el total de la `~M` redondeando los factores como pide el `~K` (la columna «Medición calculada» del visor) | Más alto |
 | `ocultos` | Hijos que un `~D` nombra y que no existen como concepto: el árbol no los puede pintar | Más bajo |
 | `raros` | Caracteres que delatan una codificación mal elegida | 0 |
 | `ms` | Lo que tarda en leer y calcular | Orientativo |

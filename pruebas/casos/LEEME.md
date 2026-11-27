@@ -96,9 +96,9 @@ limpia de este archivo.
 |---|---|---|
 | 1 a 9 | ✓ todos los capítulos cuadran | ✓ |
 | 10 | ✓ 380,00 | ✓ 19 (9 + 6 + 4: la línea 2 hereda la fórmula, como dice la norma; Presto 8.8 daría 17) |
-| 11 | ✓ 459,60 | ✓ 18,23 y 4,75 (P11B cuadra sin redondear, regla de Presto 21) |
+| 11 | ✓ 459,60 | ✗ 20,26 y 5,00: este archivo declara DN = 2 y DD = 2 en el `~K`, y con eso las líneas no dan lo declarado (18,23 y 4,75). En la exportación de Presto, con DN vacío, `P11A` cuadra |
 | 12 | ✓ 40,00 | ✓ |
-| 13 | ✓ 405,20 | ✓ 20,26 redondeando también las unidades (regla de Menfis 8) |
+| 13 | ✓ 405,20 | ✓ 20,26: el `~K` pide redondear las unidades a 2 decimales |
 | 14 | ✓ 240,00 | ✗ las líneas dan 10 y se declara 12: el archivo no cuadra consigo mismo |
 | 15 | ✗ 140,00 (declara 200) | ✓ 10 contra la `~M`; el importe usa el 7 del `~D`, como Presto 8.8 |
 

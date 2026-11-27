@@ -48,9 +48,9 @@ El cálculo replica el de Presto con los decimales y coeficientes que declara el
 propio `~K` del archivo, redondeando en la misma cadena y el mismo orden — si no,
 cualquier presupuesto descuadraría por céntimos de redondeo y el aviso no
 significaría nada. No hay tolerancia: o cuadra al último decimal o sale en rojo.
-La única excepción es el redondeo de las líneas de medición, que cada programa
-hace a su manera sin dejarlo escrito en el archivo: la medición cuadra si la
-reproduce cualquiera de las reglas conocidas (Presto 8.8, Presto 21, Menfis).
+También las líneas de medición: unidades y dimensiones se redondean a lo que
+declara el `~K` (DN y DD), y lo que no declara, o declara de forma contradictoria,
+no se redondea.
 
 Lo declarado y lo calculado nunca se mezclan, y el visor no arregla nada. Si algo
 no cuadra, lo dice y ahí lo deja.

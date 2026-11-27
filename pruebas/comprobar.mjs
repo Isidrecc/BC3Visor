@@ -135,8 +135,8 @@ const MEDIR = new vm.Script(String.raw`(function (buf) {
 
   // Mediciones: total de las líneas (totalMedicion) contra el total del ~M.
   // El visor todavía no lo enseña en pantalla (pendiente 2): se mide igual.
-  // Con el mismo criterio que la pantalla (comprobarMedicion): cuadra si alguna
-  // regla de redondeo conocida reproduce el total declarado de la ~M.
+  // Con el mismo criterio que la pantalla (comprobarMedicion): cuadra si,
+  // redondeando como pide el ~K, reproduce el total declarado de la ~M.
   const medicion = { ok: 0, mal: 0, alzada: 0 };
   for (const c of P.conceptos.values())
     for (const [padre, med] of c.mediciones) {

@@ -213,8 +213,8 @@ const K = {
   decPrecioPartida:2,    // DUO / DecPar — precio de partida (y el CI)
   decPrecioCapitulo:2,   // DC  / Dec — precio de capítulo
   decImporte:2,          // precio × medición (por convención, el de capítulo)
-  decNum:2,              // DN — nº de partes iguales de una línea
-  decDim:2               // DD — dimensiones (largo/ancho/alto)
+  decNum:null,           // DN — unidades (partes iguales) de una línea; null = sin redondear
+  decDim:null            // DD — dimensiones (largo/ancho/alto); null = sin redondear
 };
 
 function get(cod){ return P.conceptos.get(cod); }
@@ -230,7 +230,7 @@ function parsearBC3(texto){
   P.tieneK=false; P.ciRaw=''; P.ggRaw=''; P.biRaw=''; P.bajaRaw=''; P.ivaRaw=''; P.moneda='';
   Object.assign(K,{activo:false, ciPct:0, decParcial:2, decCantMed:2, decCantRend:3,
     decSubtotal:2, decNatural:2, decPrecioPartida:2, decPrecioCapitulo:2,
-    decImporte:2, decNum:2, decDim:2});
+    decImporte:2, decNum:null, decDim:null});
   cacheImporte.clear();
 
   for(const reg of separarRegistros(texto)){
@@ -302,12 +302,25 @@ function regK(c){
     K.decPrecioPartida  = entero(f3,6, K.decPrecioPartida);   // DUO
     K.decSubtotal       = entero(f3,7, K.decSubtotal);        // DI
     K.decNatural        = entero(f3,8, K.decNatural);         // DES
-    K.decNum            = entero(f3,9, K.decNum);             // DN
-    K.decDim            = entero(f3,10,K.decDim);             // DD
     K.decCantMed        = entero(f3,11,K.decCantMed);         // DS
     K.decParcial        = entero(f3,12,K.decParcial);         // DSP
     K.decImporte        = K.decPrecioCapitulo;
   }
+  // Decimales de los factores de medición: DN (unidades) y DD (dimensiones).
+  // Son las dos primeras casillas del campo 1 (orden de la norma FIEBDC-3/2024:
+  // DN \ DD \ DS \ ...) y las posiciones 9 y 10 del campo 3. Vacío o negativo:
+  // ese factor no se redondea. Si los dos campos se contradicen, tampoco: Presto
+  // deja DN vacío en el campo 1 y escribe 2 en el campo 3, y no redondea las
+  // unidades (Alqueria 332.0040 mide con -3.1415; Portocolom 004333, con -0.006).
+  const f3=c3?c3.split('\\'):null;
+  const decMed=(i1,i3)=>{
+    const d=(arr,i)=>{ const v=(arr[i]||'').trim(); return /^\d+$/.test(v)?parseInt(v,10):null; };
+    const a=d(f1,i1);
+    if(!f3) return a;
+    return a===d(f3,i3)?a:null;
+  };
+  K.decNum=decMed(0,9);
+  K.decDim=decMed(1,10);
   for(const tok of f1){
     const t=tok.trim();
     if(t && !/^\d+$/.test(t)){ P.moneda=t; break; }
@@ -743,21 +756,21 @@ function evaluarFormula(expr,v){
   catch(e){ return NaN; }
 }
 
-// Cómo redondea cada programa los factores de una línea antes de multiplicar.
-// El BC3 no dice cuál usó, así que la comprobación acepta cualquiera de estas.
-// La primera es la principal: la que se enseña cuando ninguna cuadra.
-const REGLAS_MEDICION=[
-  {unidades:false, dimensiones:true,  nombre:'como Presto 8.8: dimensiones redondeadas, unidades no'},
-  {unidades:true,  dimensiones:true,  nombre:'redondeando también las unidades, como Menfis 8'},
-  {unidades:false, dimensiones:false, nombre:'sin redondear ningún factor, como Presto 21'}];
+// Cómo se redondean los factores de una línea antes de multiplicarlos: lo que
+// pide el ~K (DN y DD, ver regK). Texto para los tooltips.
+function reglaMedicion(){
+  if(!K.activo) return 'sin redondear (el archivo no trae ~K)';
+  const f=(d,q)=>d==null?`${q} sin redondear`:`${q} a ${d} decimales`;
+  return `con el ~K: ${f(K.decDim,'dimensiones')}, ${f(K.decNum,'unidades')}`;
+}
 
 // Valor de cada línea de una ~M, en orden: {valor, formula, heredada, subtotal}.
-// valor NaN = fórmula que no se puede evaluar. `regla`: una de REGLAS_MEDICION.
-function parcialesMedicion(med,regla=REGLAS_MEDICION[0]){
+// valor NaN = fórmula que no se puede evaluar.
+function parcialesMedicion(med){
   const out=[];
   let vigente=null;
-  const dim=x=>K.activo&&regla.dimensiones?redondea(toNum(x),K.decDim):toNum(x);
-  const uds=x=>K.activo&&regla.unidades?redondea(toNum(x),K.decNum):toNum(x);
+  const dim=x=>K.activo&&K.decDim!=null?redondea(toNum(x),K.decDim):toNum(x);
+  const uds=x=>K.activo&&K.decNum!=null?redondea(toNum(x),K.decNum):toNum(x);
   for(const ln of med.lineas){
     const t=ln.tipoRaw;
     // Subtotales (tipo 1 y 2): la norma dice que sus números no cuentan, pero
@@ -784,32 +797,26 @@ function parcialesMedicion(med,regla=REGLAS_MEDICION[0]){
   return out;
 }
 
-function totalMedicion(med,regla=REGLAS_MEDICION[0]){
+function totalMedicion(med){
   if(!med) return 0;
   // Sin líneas de detalle es una partida alzada: vale el total declarado.
   if(!med.lineas.length) return toNum(med.totalRaw);
   let suma=DEC_CERO;
-  for(const p of parcialesMedicion(med,regla)){
+  for(const p of parcialesMedicion(med)){
     if(!isFinite(p.valor)) return NaN;
     suma=decAdd(suma,decFrom(p.valor));
   }
   return K.activo?decNum(decRound(suma,K.decCantMed)):decNum(suma);
 }
 
-// Comprueba una medición contra un valor declarado: cuadra si alguna de las
-// reglas conocidas lo reproduce al último decimal. Devuelve {valor, cuadra,
-// regla}; si ninguna cuadra, el valor de la regla principal.
+// Comprueba una medición contra un valor declarado, al último decimal (DS).
+// Devuelve {valor, cuadra}; cuadra null si no hay con qué comparar.
 function comprobarMedicion(med,declaradoRaw){
   const dec=K.activo?K.decCantMed:3;
   const decl=String(declaradoRaw||'').trim();
-  const principal=totalMedicion(med);
-  if(decl==='' || !isFinite(principal)) return {valor:principal, cuadra:null, regla:null};
-  const objetivo=redondea(toNum(decl),dec).toFixed(dec);
-  for(const regla of REGLAS_MEDICION){
-    const v=regla===REGLAS_MEDICION[0]?principal:totalMedicion(med,regla);
-    if(isFinite(v) && redondea(v,dec).toFixed(dec)===objetivo) return {valor:v, cuadra:true, regla};
-  }
-  return {valor:principal, cuadra:false, regla:REGLAS_MEDICION[0]};
+  const valor=totalMedicion(med);
+  if(decl==='' || !isFinite(valor)) return {valor, cuadra:null};
+  return {valor, cuadra:redondea(valor,dec).toFixed(dec)===redondea(toNum(decl),dec).toFixed(dec)};
 }
 function medicionCalculada(cod,padre){
   const c=get(cod);
@@ -1046,8 +1053,8 @@ function medDeFila(cod,padre,c,cant){
   if(!med || !med.lineas.length) return '';
   return celdaMedicion(med, cant.raw, 'Medición recalculada desde sus líneas');
 }
-// Celda de medición recalculada: verde si alguna regla de redondeo conocida
-// reproduce lo declarado (y dice cuál), rojo si ninguna.
+// Celda de medición recalculada: verde si reproduce lo declarado redondeando
+// como pide el ~K, rojo si no.
 function celdaMedicion(med,declaradoRaw,queEs){
   const dec=K.activo?K.decCantMed:3;
   const r=comprobarMedicion(med,declaradoRaw);
@@ -1057,8 +1064,8 @@ function celdaMedicion(med,declaradoRaw,queEs){
   if(r.cuadra===null)
     return `<span class="calc calc-solo" title="${esc(queEs)} — el archivo no declara un valor con el que compararlo">${esc(txt)}</span>`;
   const t=r.cuadra
-    ? `${queEs}. Coincide con lo que declara el archivo (${fmtNum(declaradoRaw)}) ${r.regla.nombre}.`
-    : `${queEs}. NO coincide: el archivo declara ${fmtNum(declaradoRaw)} y sale ${txt} ${REGLAS_MEDICION[0].nombre}; ninguna otra regla de redondeo conocida lo reproduce.`;
+    ? `${queEs} (${reglaMedicion()}). Coincide con lo que declara el archivo (${fmtNum(declaradoRaw)}).`
+    : `${queEs} (${reglaMedicion()}). NO coincide: el archivo declara ${fmtNum(declaradoRaw)} y sale ${txt}.`;
   return `<span class="calc ${r.cuadra?'calc-ok':'calc-mal'}" title="${esc(t)}">${esc(txt)}</span>`;
 }
 
